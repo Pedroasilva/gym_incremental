@@ -4,7 +4,7 @@ import { MARKET, type Modifiers } from "./market";
 import { TREATMENTS } from "./hospital";
 import { JOBS, type Job } from "./jobs";
 import { ACHIEVEMENTS, type Achievement } from "./achievements";
-import type { Tournament } from "./competition";
+import { TOURNAMENTS, type Tournament } from "./competition";
 
 const SAVE_KEY = "gym_incremental_save_v1";
 
@@ -369,10 +369,17 @@ export class Game {
     if (priorWins < BALANCE.rematchFullWins) return 1;
     return BALANCE.rematchBase * Math.pow(BALANCE.rematchDecay, priorWins - BALANCE.rematchFullWins);
   }
+  // Payout for a win at a given prior-win count, gross (before the entry fee).
+  // Clamped so a (diminished) prize never drops to or below the entry fee — it always
+  // pays at least entryFee + 1, so entering and winning is never a guaranteed loss.
+  private payout(tournamentId: string, prize: number, priorWins: number): number {
+    const raw = Math.round(prize * this.prizeFactor(priorWins) * this.itemMods().moneyMult);
+    const fee = TOURNAMENTS.find((t) => t.id === tournamentId)?.entryFee ?? 0;
+    return Math.max(raw, fee + 1);
+  }
   // What the next win of this tournament would pay (for display) — gross, before fee.
   nextPrize(tournamentId: string, prize: number): number {
-    const priorWins = this.state.wonTournaments[tournamentId] ?? 0;
-    return Math.round(prize * this.prizeFactor(priorWins) * this.itemMods().moneyMult);
+    return this.payout(tournamentId, prize, this.state.wonTournaments[tournamentId] ?? 0);
   }
   timesWon(tournamentId: string): number {
     return this.state.wonTournaments[tournamentId] ?? 0;
@@ -382,7 +389,7 @@ export class Game {
     // "first" here means a full-prize win (still inside the grace window), used by the
     // UI to label it "Prize" vs a diminished "Rematch payout".
     const first = priorWins < BALANCE.rematchFullWins;
-    const amount = Math.round(prize * this.prizeFactor(priorWins) * this.itemMods().moneyMult);
+    const amount = this.payout(tournamentId, prize, priorWins);
     this.state.wonTournaments[tournamentId] = priorWins + 1;
     this.state.money += amount;
     return { amount, first };
