@@ -154,10 +154,18 @@ function floatText(text: string) {
   setTimeout(() => el.remove(), 700);
 }
 
-$("bar").addEventListener("click", () => {
+const barEl = $("bar");
+barEl.addEventListener("click", (e) => {
+  // Only real mouse/touch clicks count. Keyboard-triggered clicks (Enter/Space)
+  // have detail === 0 — ignore them so the rep button can't be auto-fired.
+  if ((e as MouseEvent).detail === 0) return;
   if (game.push()) {
     floatText(`+${Math.max(1, Math.round(game.selectedWeight() * game.globalMultiplier()))} 💪`);
   }
+});
+// Block keyboard activation entirely (no holding Enter to spam reps).
+barEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") e.preventDefault();
 });
 $("weightDown").addEventListener("click", () => game.changeWeight(-1));
 $("weightUp").addEventListener("click", () => game.changeWeight(1));
