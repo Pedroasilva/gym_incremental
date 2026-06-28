@@ -10,6 +10,10 @@ export const BALANCE = {
   xpPerRepFactor: 1.0, // xp per rep = weight * factor * globalMultiplier
   levelBase: 100, // xp needed at level 0
   levelGrowth: 1.15, // nextXp = levelBase * growth^level
+  autoBaseCost: 200, // cost to hire the first Auto-Trainer level
+  autoCostGrowth: 2, // each level doubles the cost
+  autoMaxLevel: 8, // cap on Auto-Trainer levels
+  autoClicksPerLevel: 2, // automatic pushes per second per level
 };
 
 export type Muscle =

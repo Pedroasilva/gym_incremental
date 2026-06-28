@@ -65,6 +65,10 @@ app.innerHTML = `
         <div id="buffs" class="buffs"></div>
       </section>
     </main>
+    <div class="autobox">
+      <span class="autolbl">🤖 Auto-Trainer <b id="autolvl">0</b><span id="autorate" class="muted"></span></span>
+      <button id="autobuy" class="autobuy">Hire</button>
+    </div>
     <nav id="exlist" class="exlist"></nav>
   </div>
 
@@ -209,6 +213,7 @@ barEl.addEventListener("keydown", (e) => {
 });
 $("weightDown").addEventListener("click", () => game.changeWeight(-1));
 $("weightUp").addEventListener("click", () => game.changeWeight(1));
+$("autobuy").addEventListener("click", () => game.hireAuto());
 $("reset").addEventListener("click", () => {
   if (confirm("Reset all progress?")) {
     game.reset();
@@ -467,6 +472,18 @@ function render(now: number) {
 
   $("exname").textContent = ex.name;
   $("weightval").textContent = String(game.selectedWeight());
+
+  // Auto-Trainer control
+  $("autolvl").textContent = String(game.state.autoLevel);
+  $("autorate").textContent = game.state.autoLevel > 0 ? ` · ${game.autoClicksPerSec()} reps/s` : "";
+  const autobuy = $<HTMLButtonElement>("autobuy");
+  if (game.autoMaxed()) {
+    autobuy.textContent = "MAX";
+    autobuy.disabled = true;
+  } else {
+    autobuy.textContent = `Hire $${game.autoCost().toLocaleString("en-US")}`;
+    autobuy.disabled = game.state.money < game.autoCost();
+  }
 
   const cost = game.repCost();
   const fill = $<HTMLElement>("effort");

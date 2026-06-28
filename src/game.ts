@@ -24,6 +24,7 @@ export interface State {
   buffs: ActiveBuff[]; // active food buffs
   activeJob: string | null; // job currently being worked
   jobRemaining: number; // seconds left on the active job
+  autoLevel: number; // Auto-Trainer level (idle reps)
   wonTournaments: Record<string, boolean>; // tournaments already won (first-win bonus)
   arnoldWon: boolean;
 }
@@ -47,6 +48,7 @@ function initialState(): State {
     buffs: [],
     activeJob: null,
     jobRemaining: 0,
+    autoLevel: 0,
     wonTournaments: {},
     arnoldWon: false,
   };
@@ -55,6 +57,7 @@ function initialState(): State {
 export class Game {
   state: State;
   effort = 0;
+  private autoAcc = 0; // fractional auto-clicks carried between ticks
 
   constructor() {
     this.state = this.load();
@@ -281,6 +284,35 @@ export class Game {
     return true;
   }
 
+  // ---- Auto-Trainer (idle reps) ----
+  autoCost(): number {
+    return Math.round(BALANCE.autoBaseCost * Math.pow(BALANCE.autoCostGrowth, this.state.autoLevel));
+  }
+  autoMaxed(): boolean {
+    return this.state.autoLevel >= BALANCE.autoMaxLevel;
+  }
+  autoClicksPerSec(): number {
+    return this.state.autoLevel * BALANCE.autoClicksPerLevel;
+  }
+  hireAuto(): boolean {
+    if (this.autoMaxed() || this.state.money < this.autoCost()) return false;
+    this.state.money -= this.autoCost();
+    this.state.autoLevel++;
+    return true;
+  }
+  // Switch to an unlocked exercise whose muscle isn't exhausted. Returns false if
+  // none is available (or the body can't train at all right now).
+  private autoSwitch(): boolean {
+    if (this.state.hunger <= 0 || this.state.health <= 0) return false;
+    for (const ex of EXERCISES) {
+      if (this.unlocked(ex) && this.state.fatigue[ex.muscle] < BALANCE.fatigueMax) {
+        if (ex.id !== this.state.currentExercise) this.selectExercise(ex.id);
+        return true;
+      }
+    }
+    return false;
+  }
+
   tick(dt: number) {
     for (const m of Object.keys(this.state.fatigue) as Muscle[]) {
       const active = this.exercise().muscle === m;
@@ -313,6 +345,17 @@ export class Game {
         if (job) this.state.money += job.pay;
         this.state.activeJob = null;
         this.state.jobRemaining = 0;
+      }
+    }
+    // Auto-Trainer: perform automatic reps over time
+    if (this.state.autoLevel > 0) {
+      this.autoAcc += this.autoClicksPerSec() * dt;
+      let guard = 0;
+      while (this.autoAcc >= 1 && guard++ < 300) {
+        this.autoAcc -= 1;
+        if (this.muscleFatigue() >= BALANCE.fatigueMax && !this.autoSwitch()) break;
+        if (this.state.hunger <= 0 || this.state.health <= 0) break;
+        this.push(); // may partial-charge or complete a rep; state handled inside
       }
     }
   }
