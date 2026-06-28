@@ -25,6 +25,13 @@ export const BALANCE = {
   autoCostGrowth: 2, // each level doubles the cost
   autoMaxLevel: 8, // cap on Auto-Trainer levels
   autoClicksPerLevel: 2, // automatic pushes per second per level
+  agentBaseCost: 500, // cost to hire the first Business Agent level (auto-work)
+  agentCostGrowth: 1.8, // each level multiplies the cost
+  agentMaxLevel: 7, // cap on Business Agent levels (interval reaches the minimum here)
+  agentIntervalStart: 120, // seconds between auto-jobs at level 1
+  agentIntervalStep: 15, // each level shortens the interval by this many seconds
+  agentIntervalMin: 30, // floor on the auto-job interval
+  agentFoodCost: 6, // hunger burned per auto-job when the chosen job needs food
 };
 
 export type Muscle =

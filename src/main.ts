@@ -84,6 +84,10 @@ app.innerHTML = `
       <h2>💼 Work</h2>
       <p class="muted">Earn money on the side while you build toward competitions. Each job takes time and pays when it's done — you can keep training meanwhile.</p>
       <p id="jobstatus" class="cond"></p>
+      <div class="autobox">
+        <span class="autolbl">🧑‍💼 Business Agent <b id="agentlvl">0</b><span id="agentrate" class="muted"></span></span>
+        <button id="agentbuy" class="autobuy">Hire</button>
+      </div>
       <div id="joblist" class="grid"></div>
     </section>
   </div>
@@ -276,6 +280,7 @@ function holdToRepeat(el: HTMLElement, step: () => void) {
 holdToRepeat($("weightDown"), () => game.changeWeight(-1));
 holdToRepeat($("weightUp"), () => game.changeWeight(1));
 $("autobuy").addEventListener("click", () => game.hireAuto());
+$("agentbuy").addEventListener("click", () => game.hireAgent() && renderWork());
 $("reset").addEventListener("click", () => {
   if (confirm("Reset all progress?")) {
     game.reset();
@@ -606,6 +611,25 @@ function render(now: number) {
   } else {
     autobuy.textContent = `Hire $${game.autoCost().toLocaleString("en-US")}`;
     autobuy.disabled = game.state.money < game.autoCost();
+  }
+
+  // Business Agent (auto-work) control
+  $("agentlvl").textContent = String(game.state.agentLevel);
+  if (game.state.agentLevel === 0) {
+    $("agentrate").textContent = " · auto-works jobs for you";
+  } else {
+    const nextJob = game.agentBestJob();
+    $("agentrate").textContent = ` · every ${game.agentInterval()}s · next in ${Math.ceil(game.state.agentTimer)}s${
+      nextJob ? ` (${nextJob.emoji} +$${nextJob.pay})` : ""
+    }`;
+  }
+  const agentbuy = $<HTMLButtonElement>("agentbuy");
+  if (game.agentMaxed()) {
+    agentbuy.textContent = "MAX";
+    agentbuy.disabled = true;
+  } else {
+    agentbuy.textContent = `${game.state.agentLevel === 0 ? "Hire" : "Upgrade"} $${game.agentCost().toLocaleString("en-US")}`;
+    agentbuy.disabled = game.state.money < game.agentCost();
   }
 
   const cost = game.repCost();

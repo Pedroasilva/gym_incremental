@@ -30,6 +30,8 @@ export interface State {
   activeJob: string | null; // job currently being worked
   jobRemaining: number; // seconds left on the active job
   autoLevel: number; // Auto-Trainer level (idle reps)
+  agentLevel: number; // Business Agent level (auto-work); 0 = not hired
+  agentTimer: number; // seconds until the Business Agent finishes its next job
   jobsDone: number; // total jobs completed
   wonTournaments: Record<string, boolean>; // tournaments already won (first-win bonus)
   protein: number; // prestige currency (persists across a New Season reset)
@@ -61,6 +63,8 @@ function initialState(): State {
     activeJob: null,
     jobRemaining: 0,
     autoLevel: 0,
+    agentLevel: 0,
+    agentTimer: 0,
     jobsDone: 0,
     wonTournaments: {},
     protein: 0,
@@ -391,6 +395,35 @@ export class Game {
     return this.jobUnlocked(job) && !(job.needsFood && this.state.hunger <= 0);
   }
 
+  // ---- Business Agent (auto-work) ----
+  // Hired like the Auto-Trainer; each level shortens the auto-job interval from
+  // agentIntervalStart (120s) down to agentIntervalMin (30s).
+  agentCost(): number {
+    return Math.round(BALANCE.agentBaseCost * Math.pow(BALANCE.agentCostGrowth, this.state.agentLevel));
+  }
+  agentMaxed(): boolean {
+    return this.state.agentLevel >= BALANCE.agentMaxLevel;
+  }
+  agentInterval(): number {
+    return Math.max(
+      BALANCE.agentIntervalMin,
+      BALANCE.agentIntervalStart - (this.state.agentLevel - 1) * BALANCE.agentIntervalStep,
+    );
+  }
+  // Highest-paying unlocked job the agent can do right now (food permitting); when
+  // starving it falls back to a no-food job (begging), so it never soft-locks.
+  agentBestJob(): Job | undefined {
+    return JOBS.filter((j) => this.jobUnlocked(j) && (!j.needsFood || this.state.hunger > 0))
+      .sort((a, b) => b.pay - a.pay)[0];
+  }
+  hireAgent(): boolean {
+    if (this.agentMaxed() || this.state.money < this.agentCost()) return false;
+    this.state.money -= this.agentCost();
+    this.state.agentLevel++;
+    if (this.state.agentTimer <= 0) this.state.agentTimer = this.agentInterval();
+    return true;
+  }
+
   // ---- Auto-Trainer (idle reps) ----
   autoCost(): number {
     return Math.round(BALANCE.autoBaseCost * Math.pow(BALANCE.autoCostGrowth, this.state.autoLevel));
@@ -465,6 +498,19 @@ export class Game {
           this.state.activeJob = null;
           this.state.jobRemaining = 0;
         }
+      }
+    }
+    // Business Agent: auto-works the best available job every agentInterval seconds
+    if (this.state.agentLevel > 0) {
+      this.state.agentTimer -= dt;
+      if (this.state.agentTimer <= 0) {
+        const job = this.agentBestJob();
+        if (job) {
+          this.state.money += job.pay;
+          this.state.jobsDone++;
+          if (job.needsFood) this.state.hunger = Math.max(0, this.state.hunger - BALANCE.agentFoodCost);
+        }
+        this.state.agentTimer = this.agentInterval();
       }
     }
     // Auto-Trainer: perform automatic reps over time
