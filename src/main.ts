@@ -248,8 +248,33 @@ barEl.addEventListener("click", (e) => {
 barEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") e.preventDefault();
 });
-$("weightDown").addEventListener("click", () => game.changeWeight(-1));
-$("weightUp").addEventListener("click", () => game.changeWeight(1));
+// Press-and-hold to keep changing the weight: one step on press, then auto-repeat
+// (accelerating) while held. Pointer/touch only — keyboard can't fire pointerdown.
+function holdToRepeat(el: HTMLElement, step: () => void) {
+  let delay: ReturnType<typeof setTimeout> | undefined;
+  let repeat: ReturnType<typeof setTimeout> | undefined;
+  const stop = () => {
+    if (delay) clearTimeout(delay);
+    if (repeat) clearTimeout(repeat);
+    delay = repeat = undefined;
+  };
+  el.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return; // primary button / touch only
+    e.preventDefault();
+    step(); // immediate first step on tap
+    let ms = 110;
+    delay = setTimeout(function spin() {
+      step();
+      ms = Math.max(28, ms - 12); // speed up the longer you hold
+      repeat = setTimeout(spin, ms);
+    }, 300);
+  });
+  // Stop on release/cancel anywhere, or when the pointer leaves the button.
+  for (const ev of ["pointerup", "pointercancel"] as const) window.addEventListener(ev, stop);
+  el.addEventListener("pointerleave", stop);
+}
+holdToRepeat($("weightDown"), () => game.changeWeight(-1));
+holdToRepeat($("weightUp"), () => game.changeWeight(1));
 $("autobuy").addEventListener("click", () => game.hireAuto());
 $("reset").addEventListener("click", () => {
   if (confirm("Reset all progress?")) {
