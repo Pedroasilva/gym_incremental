@@ -43,6 +43,7 @@ app.innerHTML = `
     <button id="tab-achv" class="tab">🏅</button>
   </nav>
 
+  <div class="content">
   <div id="view-gym">
     <main class="stage">
       <section class="avatar-box">
@@ -148,12 +149,13 @@ app.innerHTML = `
     </section>
   </div>
 
-  <div id="toasts" class="toasts"></div>
-
   <footer class="footer">
     <button id="reset" class="reset">Reset progress</button>
     <span class="ver">v0.5 — From Scrawny to Swole</span>
   </footer>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
 `;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
