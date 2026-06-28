@@ -11,6 +11,7 @@ export interface Modifiers {
   conditionMod?: number; // flat conditioning bonus/penalty
   moneyMult?: number; // money per rep
   sideEffect?: number; // raises health side effects (lowers conditioning)
+  liftMult?: number; // raises the max-lift cap
 }
 
 export interface MarketItem {
@@ -27,8 +28,8 @@ export const MARKET: MarketItem[] = [
   // ---- Equipment (clean, permanent gear) ----
   { id: "gloves", name: "Lifting Gloves", emoji: "🧤", category: "equipment", cost: 60, desc: "+8 effort per click", mods: { clickAdd: 8 } },
   { id: "shoes", name: "Lifting Shoes", emoji: "👟", category: "equipment", cost: 90, desc: "+6 effort per click", mods: { clickAdd: 6 } },
-  { id: "belt", name: "Lifting Belt", emoji: "🥋", category: "equipment", cost: 140, desc: "-20% fatigue per rep", mods: { fatigueMult: 0.8 } },
-  { id: "straps", name: "Wrist Straps", emoji: "🎗️", category: "equipment", cost: 220, desc: "+10% muscle development", mods: { muscleMult: 1.1 } },
+  { id: "belt", name: "Lifting Belt", emoji: "🥋", category: "equipment", cost: 140, desc: "-20% fatigue, +10% max lift", mods: { fatigueMult: 0.8, liftMult: 1.1 } },
+  { id: "straps", name: "Wrist Straps", emoji: "🎗️", category: "equipment", cost: 220, desc: "+10% muscle, +15% max lift", mods: { muscleMult: 1.1, liftMult: 1.15 } },
   { id: "premium", name: "Premium Gym Pass", emoji: "🏛️", category: "equipment", cost: 600, desc: "+25% strength XP, +20% money", mods: { xpMult: 1.25, moneyMult: 1.2 } },
 
   // ---- Vitamins (mild, all-upside) ----
@@ -44,10 +45,10 @@ export const MARKET: MarketItem[] = [
   { id: "liver", name: "Liver Support", emoji: "🛡️", category: "compound", cost: 420, desc: "-18 side effects", mods: { sideEffect: -18 } },
 
   // ---- Anabolics (anabolisantes: huge gains, heavy side effects) ----
-  { id: "test", name: "Testosterone", emoji: "💉", category: "anabolic", cost: 900, desc: "+50% muscle, +20% XP, +12 side effects", mods: { muscleMult: 1.5, xpMult: 1.2, sideEffect: 12 } },
-  { id: "dbol", name: "Dianabol", emoji: "🔴", category: "anabolic", cost: 1400, desc: "+80% muscle, +10 click, +22 side effects", mods: { muscleMult: 1.8, clickAdd: 10, sideEffect: 22 } },
-  { id: "hgh", name: "HGH", emoji: "🧬", category: "anabolic", cost: 2600, desc: "+60% muscle, +40% XP, +10 side effects", mods: { muscleMult: 1.6, xpMult: 1.4, sideEffect: 10 } },
-  { id: "tren", name: "Trenbolone", emoji: "☠️", category: "anabolic", cost: 3200, desc: "+120% muscle, +30% XP, +32 side effects", mods: { muscleMult: 2.2, xpMult: 1.3, sideEffect: 32 } },
+  { id: "test", name: "Testosterone", emoji: "💉", category: "anabolic", cost: 900, desc: "+50% muscle, +20% lift, +12 side effects", mods: { muscleMult: 1.5, xpMult: 1.2, liftMult: 1.2, sideEffect: 12 } },
+  { id: "dbol", name: "Dianabol", emoji: "🔴", category: "anabolic", cost: 1400, desc: "+80% muscle, +35% lift, +22 side effects", mods: { muscleMult: 1.8, clickAdd: 10, liftMult: 1.35, sideEffect: 22 } },
+  { id: "hgh", name: "HGH", emoji: "🧬", category: "anabolic", cost: 2600, desc: "+60% muscle, +40% XP, +20% lift, +10 side effects", mods: { muscleMult: 1.6, xpMult: 1.4, liftMult: 1.2, sideEffect: 10 } },
+  { id: "tren", name: "Trenbolone", emoji: "☠️", category: "anabolic", cost: 3200, desc: "+120% muscle, +50% lift, +32 side effects", mods: { muscleMult: 2.2, xpMult: 1.3, liftMult: 1.5, sideEffect: 32 } },
 ];
 
 export const CATEGORY_LABEL: Record<Category, string> = {

@@ -51,7 +51,7 @@ app.innerHTML = `
         <h2 id="exname">Crunch</h2>
         <div class="weight">
           <button id="weightDown">−</button>
-          <span>Weight: <b id="weightval">0</b> kg</span>
+          <span>Weight: <b id="weightval">0</b> / <span id="weightmax">0</span> kg</span>
           <button id="weightUp">+</button>
         </div>
         <button id="bar" class="bar" aria-label="Do a rep">
@@ -515,6 +515,9 @@ function render(now: number) {
 
   $("exname").textContent = ex.name;
   $("weightval").textContent = String(game.selectedWeight());
+  $("weightmax").textContent = String(game.maxLift());
+  $<HTMLButtonElement>("weightUp").disabled = game.selectedWeight() >= game.maxLift();
+  $<HTMLButtonElement>("weightDown").disabled = game.selectedWeight() <= ex.minWeight;
 
   // Auto-Trainer control
   $("autolvl").textContent = String(game.state.autoLevel);
@@ -549,7 +552,13 @@ function render(now: number) {
           : ease > 0.6
             ? "flowing! 🔥"
             : "getting easier…";
-  $("barlbl").textContent = sick ? "HOSPITAL 🏥" : starving ? "EAT 🍽️" : exhausted ? "REST 😮‍💨" : "CLICK TO PUSH";
+  $("barlbl").textContent = sick
+    ? "HOSPITAL 🏥"
+    : starving
+      ? "EAT 🍽️"
+      : exhausted
+        ? "REST 😮‍💨"
+        : `CLICK TO ${ex.name.toUpperCase()}`;
   $("bar").classList.toggle("exhausted", exhausted || starving || sick);
 
   $("fatname").textContent = ex.muscle;

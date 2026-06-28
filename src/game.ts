@@ -16,7 +16,7 @@ export interface State {
   health: number; // 0..100 (drained by anabolic side effects)
   dietCondition: number; // conditioning offset from food (drifts back to 0)
   currentExercise: string; // id
-  weightIdx: Record<string, number>;
+  weight: Record<string, number>; // chosen weight per exercise (kg)
   reps: Record<string, number>;
   fatigue: Record<Muscle, number>;
   physique: Record<Muscle, number>;
@@ -41,7 +41,7 @@ function initialState(): State {
     health: 100,
     dietCondition: 0,
     currentExercise: "crunch",
-    weightIdx: {},
+    weight: {},
     reps: {},
     fatigue: { core: 0, legs: 0, chest: 0, arms: 0, back: 0, fullbody: 0 },
     physique: { core: 0, legs: 0, chest: 0, arms: 0, back: 0, fullbody: 0 },
@@ -69,9 +69,15 @@ export class Game {
   exercise(): Exercise {
     return EXERCISES.find((e) => e.id === this.state.currentExercise)!;
   }
+  // Heaviest weight the player can currently load, from strength + gear, per lift.
+  maxLift(ex = this.exercise()): number {
+    const cap = (BALANCE.liftCapBase + Math.sqrt(this.state.strength) * BALANCE.liftCapSlope) *
+      ex.liftFactor * this.itemMods().liftMult;
+    return Math.max(ex.minWeight, Math.floor(cap / ex.step) * ex.step);
+  }
   selectedWeight(ex = this.exercise()): number {
-    const idx = this.state.weightIdx[ex.id] ?? 0;
-    return ex.weights[Math.min(idx, ex.weights.length - 1)];
+    const w = this.state.weight[ex.id] ?? ex.minWeight;
+    return Math.max(ex.minWeight, Math.min(w, this.maxLift(ex))); // clamp to current cap
   }
   currentReps(ex = this.exercise()): number {
     return this.state.reps[ex.id] ?? 0;
@@ -99,6 +105,7 @@ export class Game {
       conditionMod: 0,
       moneyMult: 1,
       sideEffect: 0,
+      liftMult: 1,
     };
     for (const item of MARKET) {
       if (!this.owns(item.id)) continue;
@@ -110,6 +117,7 @@ export class Game {
       acc.conditionMod += m.conditionMod ?? 0;
       acc.moneyMult *= m.moneyMult ?? 1;
       acc.sideEffect += m.sideEffect ?? 0;
+      acc.liftMult *= m.liftMult ?? 1;
     }
     return acc;
   }
@@ -193,8 +201,9 @@ export class Game {
   }
   changeWeight(delta: number) {
     const ex = this.exercise();
-    const current = this.state.weightIdx[ex.id] ?? 0;
-    this.state.weightIdx[ex.id] = Math.max(0, Math.min(ex.weights.length - 1, current + delta));
+    const current = this.selectedWeight(ex);
+    const next = Math.max(ex.minWeight, Math.min(this.maxLift(ex), current + delta * ex.step));
+    this.state.weight[ex.id] = next;
     this.effort = 0;
   }
 
