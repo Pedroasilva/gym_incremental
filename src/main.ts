@@ -58,7 +58,7 @@ app.innerHTML = `
           <button id="weightUp">+</button>
         </div>
         <div class="settrack">
-          <span class="setlbl">Set · <b id="setreps">0</b>/<span id="setper">12</span> reps · <b id="setsdone">0</b> done</span>
+          <span class="setlbl">Set · <b id="setreps">0</b>/<span id="setper">12</span> reps · <b id="setsdone">0</b> done · <b id="totalreps">0</b> total reps</span>
           <div id="setdots" class="setdots"></div>
         </div>
         <button id="bar" class="bar" aria-label="Do a rep">
@@ -684,6 +684,7 @@ function render(now: number) {
   $("setper").textContent = String(BALANCE.repsPerSet);
   $("setreps").textContent = String(setReps);
   $("setsdone").textContent = String(game.state.setsCompleted);
+  $("totalreps").textContent = game.state.totalReps.toLocaleString("en-US");
   const dots = $("setdots");
   if (dots.childElementCount !== BALANCE.repsPerSet) {
     dots.innerHTML = Array.from({ length: BALANCE.repsPerSet }, () => `<span class="dot"></span>`).join("");
