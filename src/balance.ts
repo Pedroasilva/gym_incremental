@@ -16,6 +16,7 @@ export const BALANCE = {
   setConditionMax: 30, // cap on conditioning earned from doing sets
   healthDrainBase: 0.06, // health lost per rep (overtraining)
   healthDrainWeight: 0.003, // extra health lost per rep, scaled by weight
+  starveHealthDrain: 2, // health lost per second while hunger is at 0 (starving)
   collapseHealth: 10, // health at/below this forces an emergency hospitalization
   collapseSeconds: 60, // forced recovery lockout (no training) while hospitalized
   collapseLoss: 0.2, // fraction of gains (strength, level, conditioning) lost on collapse
@@ -35,6 +36,8 @@ export const BALANCE = {
   agentIntervalStep: 15, // each level shortens the interval by this many seconds
   agentIntervalMin: 30, // floor on the auto-job interval
   agentFoodCost: 6, // hunger burned per auto-job when the chosen job needs food
+  chefCost: 450, // one-time cost to hire the Personal Chef (auto-feeds you)
+  chefHungerThreshold: 10, // chef auto-buys the marked food when hunger drops below this
   rematchFullWins: 5, // this many wins per show pay the FULL prize before any decay
   rematchBase: 0.5, // first diminished win (after the grace window) pays this fraction
   rematchDecay: 0.7, // each further win pays this fraction of the previous one

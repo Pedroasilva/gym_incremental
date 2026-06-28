@@ -97,6 +97,12 @@ app.innerHTML = `
     <section class="panel">
       <h2>🍽️ Food</h2>
       <p class="muted">Eat to restore hunger. Clean food boosts gains & conditioning; junk fills you fast but wrecks your stage look.</p>
+      <div class="autobox">
+        <span class="autolbl">👨‍🍳 Personal Chef<span id="chefrate" class="muted"></span>
+          <span class="chefpick">Buys: <select id="cheffood"></select></span>
+        </span>
+        <button id="chefbuy" class="autobuy">Hire</button>
+      </div>
       <div id="foodlist" class="grid"></div>
     </section>
   </div>
@@ -284,6 +290,8 @@ holdToRepeat($("weightDown"), () => game.changeWeight(-1));
 holdToRepeat($("weightUp"), () => game.changeWeight(1));
 $("autobuy").addEventListener("click", () => game.hireAuto());
 $("agentbuy").addEventListener("click", () => game.hireAgent() && renderWork());
+$("chefbuy").addEventListener("click", () => game.hireChef() && renderFood());
+$("cheffood").addEventListener("change", (e) => game.markFood((e.target as HTMLSelectElement).value));
 $("reset").addEventListener("click", () => {
   if (confirm("Reset all progress?")) {
     game.reset();
@@ -329,7 +337,27 @@ function renderWork() {
 }
 
 // ================= Food =================
+function renderChef() {
+  // food picker (the meal the chef auto-buys)
+  const sel = $<HTMLSelectElement>("cheffood");
+  if (sel.childElementCount !== FOODS.length) {
+    sel.innerHTML = FOODS.map((f) => `<option value="${f.id}">${f.emoji} ${f.name} ($${f.cost})</option>`).join("");
+  }
+  if (game.state.markedFood) sel.value = game.state.markedFood;
+  const chefbuy = $<HTMLButtonElement>("chefbuy");
+  if (game.state.chefHired) {
+    chefbuy.textContent = "Hired ✓";
+    chefbuy.disabled = true;
+    $("chefrate").textContent = ` · auto-buys below ${BALANCE.chefHungerThreshold} 🍽️`;
+  } else {
+    chefbuy.textContent = `Hire $${game.chefCost().toLocaleString("en-US")}`;
+    chefbuy.disabled = game.state.money < game.chefCost();
+    $("chefrate").textContent = " · feeds you when hunger runs low";
+  }
+}
+
 function renderFood() {
+  renderChef();
   $("foodlist").innerHTML = FOODS.map((f) => {
     const tags: string[] = [`+${f.satiety} 🍽️`];
     if (f.condition) tags.push(`${f.condition > 0 ? "+" : ""}${f.condition} cond`);
@@ -373,7 +401,7 @@ function renderMarket() {
       const owned = inCat
         .filter((i) => game.owns(i.id))
         .map(
-          (i) => `<span class="card mk owned min" title="${i.desc}">
+          (i) => `<span class="card mk owned min" data-tip="${i.desc}">
             <span class="cemoji">${i.emoji}</span>
             <span class="cname2">${i.name}</span>
             <span class="cost">✓</span>
@@ -756,6 +784,7 @@ function render(now: number) {
   $("avatarlbl").textContent = av.label;
 
   if (!$("view-prestige").classList.contains("hidden")) renderPrestige(); // live protein gain
+  if (!$("view-food").classList.contains("hidden")) renderChef(); // live chef hire affordability
 
   for (const a of game.checkAchievements()) {
     toast(`🏅 ${a.emoji} ${a.name} unlocked!`);
@@ -765,6 +794,11 @@ function render(now: number) {
   if (game.jobEvents.length) {
     for (const j of game.jobEvents) toast(`${j.emoji} ${j.name} done · +$${j.pay.toLocaleString("en-US")}`);
     game.jobEvents.length = 0;
+  }
+
+  if (game.chefEvents.length) {
+    for (const c of game.chefEvents) toast(`👨‍🍳 Chef served ${c.emoji} ${c.name} · −$${c.cost.toLocaleString("en-US")}`);
+    game.chefEvents.length = 0;
   }
 
   if (game.justCollapsed) {

@@ -379,13 +379,33 @@ body {
   gap: 6px;
 }
 .card.min {
+  position: relative;
   flex-direction: row;
   align-items: center;
   width: auto;
   gap: 6px;
   padding: 5px 10px;
-  cursor: default;
+  cursor: help;
   opacity: 0.9;
+}
+/* hover tooltip: reveal the item's stat effects from data-tip */
+.card.min[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: #0d1117;
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 .card.min .cemoji { font-size: 16px; }
 .card.min .cname2 { font-size: 12px; }
@@ -513,6 +533,21 @@ body {
   font-size: 14px;
 }
 .autolbl b { color: var(--accent); }
+.chefpick {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.chefpick select {
+  background: var(--panel2);
+  color: var(--text);
+  border: 1px solid var(--panel2);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
 .autobuy {
   border: none;
   border-radius: 8px;

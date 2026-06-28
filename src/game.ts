@@ -36,6 +36,8 @@ export interface State {
   agentTimer: number; // seconds until the Business Agent finishes its next job
   jobsDone: number; // total jobs completed
   wonTournaments: Record<string, number>; // win count per tournament (0/undefined = never won)
+  chefHired: boolean; // Personal Chef hired (auto-feeds you the marked food)
+  markedFood: string | null; // food id the chef buys when hunger runs low
   protein: number; // prestige currency (persists across a New Season reset)
   seasons: number; // New Seasons completed → Olympia division climbed (persists)
   achievements: Record<string, boolean>; // unlocked achievements (persist across prestige)
@@ -80,6 +82,8 @@ function initialState(): State {
     agentTimer: 0,
     jobsDone: 0,
     wonTournaments: {},
+    chefHired: false,
+    markedFood: null,
     protein: 0,
     seasons: 0,
     achievements: {},
@@ -95,6 +99,8 @@ export class Game {
   jobEvents: { name: string; emoji: string; pay: number }[] = [];
   justCollapsed = false; // set when an emergency hospitalization starts (UI toast)
   justRecovered = false; // set when a recovery lockout finishes (UI toast)
+  // meals the Personal Chef auto-served this tick (drained by the UI for a toast)
+  chefEvents: { name: string; emoji: string; cost: number }[] = [];
 
   constructor() {
     this.state = this.load();
@@ -343,6 +349,24 @@ export class Game {
     return true;
   }
 
+  // ---- Personal Chef (auto-feed) ----
+  chefCost(): number {
+    return BALANCE.chefCost;
+  }
+  hireChef(): boolean {
+    if (this.state.chefHired || this.state.money < this.chefCost()) return false;
+    this.state.money -= this.chefCost();
+    this.state.chefHired = true;
+    // default to the marked food, or the cheapest food, so it works right away
+    if (!this.state.markedFood) {
+      this.state.markedFood = [...FOODS].sort((a, b) => a.cost - b.cost)[0].id;
+    }
+    return true;
+  }
+  markFood(foodId: string) {
+    if (FOODS.some((f) => f.id === foodId)) this.state.markedFood = foodId;
+  }
+
   eat(foodId: string): boolean {
     const food = FOODS.find((f) => f.id === foodId);
     if (!food || this.state.money < food.cost) return false;
@@ -581,13 +605,22 @@ export class Game {
     // health: anabolic side effects drain it; recovers slowly when clean
     const se = this.sideEffects();
     this.state.health = Math.max(0, Math.min(100, this.state.health + (0.4 - se * 0.06) * dt));
-    if (this.state.hunger <= 0) this.state.health = Math.max(0, this.state.health - 0.5 * dt);
+    // starving (0 hunger) steadily degrades health — can drive you into collapse
+    if (this.state.hunger <= 0) this.state.health = Math.max(0, this.state.health - BALANCE.starveHealthDrain * dt);
     // collapse: health bottomed out → emergency hospitalization (20% gains lost)
     if (this.state.health <= BALANCE.collapseHealth) this.collapse();
     // hunger slowly drops over time; diet conditioning drifts back to 0
     this.state.hunger = Math.max(0, this.state.hunger - 0.4 * dt);
     if (this.state.dietCondition > 0) this.state.dietCondition = Math.max(0, this.state.dietCondition - 0.6 * dt);
     else if (this.state.dietCondition < 0) this.state.dietCondition = Math.min(0, this.state.dietCondition + 0.6 * dt);
+    // Personal Chef: when hunger runs low, auto-buy the marked food (spends money)
+    if (this.state.chefHired && this.state.markedFood && this.state.hunger < BALANCE.chefHungerThreshold) {
+      const food = FOODS.find((f) => f.id === this.state.markedFood);
+      if (food && this.state.money >= food.cost) {
+        this.eat(food.id);
+        this.chefEvents.push({ name: food.name, emoji: food.emoji, cost: food.cost });
+      }
+    }
     // tick down food buffs
     if (this.state.buffs.length) {
       for (const b of this.state.buffs) b.remaining -= dt;
