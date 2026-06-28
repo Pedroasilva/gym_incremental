@@ -24,6 +24,7 @@ export interface State {
   buffs: ActiveBuff[]; // active food buffs
   activeJob: string | null; // job currently being worked
   jobRemaining: number; // seconds left on the active job
+  wonTournaments: Record<string, boolean>; // tournaments already won (first-win bonus)
   arnoldWon: boolean;
 }
 
@@ -46,6 +47,7 @@ function initialState(): State {
     buffs: [],
     activeJob: null,
     jobRemaining: 0,
+    wonTournaments: {},
     arnoldWon: false,
   };
 }
@@ -248,8 +250,14 @@ export class Game {
     return true;
   }
 
-  awardPrize(amount: number) {
-    this.state.money += amount * this.itemMods().moneyMult; // gear can boost winnings
+  // First win of a tournament pays the full prize; rematches pay 20% (exhibition),
+  // so jobs stay relevant and shows can't be farmed for trivial infinite money.
+  claimPrize(tournamentId: string, prize: number): { amount: number; first: boolean } {
+    const first = !this.state.wonTournaments[tournamentId];
+    this.state.wonTournaments[tournamentId] = true;
+    const amount = Math.round((first ? prize : prize * 0.2) * this.itemMods().moneyMult);
+    this.state.money += amount;
+    return { amount, first };
   }
 
   // ---- Jobs ----

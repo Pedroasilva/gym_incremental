@@ -315,6 +315,8 @@ function renderHospital() {
 let comp: Competition | null = null;
 let lastResult: RoundResult | null = null;
 let prizeAwarded = false;
+let lastPrize = 0;
+let lastPrizeFirst = false;
 
 function enter(t: Tournament) {
   comp = new Competition(t, game.state.physique, game.conditioning(), Date.now() & 0xffffff);
@@ -327,7 +329,9 @@ function nextRound() {
   lastResult = comp.nextRound(Date.now() & 0xffffff);
   if (comp.finished && comp.playerWon() && !prizeAwarded) {
     prizeAwarded = true;
-    game.awardPrize(comp.tournament.prize);
+    const res = game.claimPrize(comp.tournament.id, comp.tournament.prize);
+    lastPrize = res.amount;
+    lastPrizeFirst = res.first;
     if (comp.tournament.isArnold) game.state.arnoldWon = true;
     game.save();
   }
@@ -356,14 +360,18 @@ function renderArnold() {
     // tournament picker
     body.innerHTML =
       `<div class="tlist">` +
-      TOURNAMENTS.map(
-        (t) => `<button class="tcard${t.isArnold ? " arnold" : ""}" data-enter="${t.id}">
+      TOURNAMENTS.map((t) => {
+        const won = !!game.state.wonTournaments[t.id];
+        const prizeLine = won
+          ? `Won ✅ · rematch $${Math.round(t.prize * 0.2).toLocaleString("en-US")}`
+          : `Prize $${t.prize.toLocaleString("en-US")}`;
+        return `<button class="tcard${t.isArnold ? " arnold" : ""}" data-enter="${t.id}">
           <span class="temoji">${t.emoji}</span>
-          <span class="tname">${t.name}${t.isArnold && game.state.arnoldWon ? " ✅" : ""}</span>
+          <span class="tname">${t.name}</span>
           <span class="tdesc">${t.desc}</span>
-          <span class="tprize">Prize $${t.prize.toLocaleString("en-US")}</span>
-        </button>`,
-      ).join("") +
+          <span class="tprize">${prizeLine}</span>
+        </button>`;
+      }).join("") +
       `</div>`;
     body.querySelectorAll<HTMLButtonElement>("[data-enter]").forEach((b) => {
       b.onclick = () => enter(TOURNAMENTS.find((t) => t.id === b.dataset.enter)!);
@@ -396,7 +404,7 @@ function renderArnold() {
   const msg = $("arnold-msg");
   if (comp?.finished) {
     msg.textContent = comp.playerWon()
-      ? `🏆 You won ${comp.tournament.name}! Prize: $${comp.tournament.prize.toLocaleString("en-US")}`
+      ? `🏆 You won ${comp.tournament.name}! ${lastPrizeFirst ? "Prize" : "Rematch payout"}: $${lastPrize.toLocaleString("en-US")}`
       : `Champion: ${comp.winner?.name}. Train harder and come back.`;
     msg.className = "arnold-msg " + (comp.playerWon() ? "win" : "lose");
   } else if (comp && comp.playerEliminated()) {
