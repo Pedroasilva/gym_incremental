@@ -2,6 +2,7 @@ import { BALANCE, EXERCISES, MUSCLES, type Muscle, type Exercise } from "./balan
 import { FOODS, type ActiveBuff } from "./nutrition";
 import { MARKET, type Modifiers } from "./market";
 import { TREATMENTS } from "./hospital";
+import { JOBS, type Job } from "./jobs";
 
 const SAVE_KEY = "gym_incremental_save_v1";
 
@@ -21,6 +22,8 @@ export interface State {
   physique: Record<Muscle, number>;
   owned: Record<string, boolean>; // market items owned
   buffs: ActiveBuff[]; // active food buffs
+  activeJob: string | null; // job currently being worked
+  jobRemaining: number; // seconds left on the active job
   arnoldWon: boolean;
 }
 
@@ -41,6 +44,8 @@ function initialState(): State {
     physique: { core: 0, legs: 0, chest: 0, arms: 0, back: 0, fullbody: 0 },
     owned: {},
     buffs: [],
+    activeJob: null,
+    jobRemaining: 0,
     arnoldWon: false,
   };
 }
@@ -247,6 +252,27 @@ export class Game {
     this.state.money += amount * this.itemMods().moneyMult; // gear can boost winnings
   }
 
+  // ---- Jobs ----
+  jobUnlocked(job: Job): boolean {
+    return this.state.level >= job.unlockLevel;
+  }
+  activeJobObj(): Job | undefined {
+    return JOBS.find((j) => j.id === this.state.activeJob);
+  }
+  jobProgress(): number {
+    const job = this.activeJobObj();
+    if (!job) return 0;
+    return Math.max(0, Math.min(1, 1 - this.state.jobRemaining / job.duration));
+  }
+  startJob(id: string): boolean {
+    if (this.state.activeJob) return false; // already busy
+    const job = JOBS.find((j) => j.id === id);
+    if (!job || !this.jobUnlocked(job)) return false;
+    this.state.activeJob = id;
+    this.state.jobRemaining = job.duration;
+    return true;
+  }
+
   tick(dt: number) {
     for (const m of Object.keys(this.state.fatigue) as Muscle[]) {
       const active = this.exercise().muscle === m;
@@ -270,6 +296,16 @@ export class Game {
     if (this.state.buffs.length) {
       for (const b of this.state.buffs) b.remaining -= dt;
       this.state.buffs = this.state.buffs.filter((b) => b.remaining > 0);
+    }
+    // work the active job; pay out when finished
+    if (this.state.activeJob) {
+      this.state.jobRemaining -= dt;
+      if (this.state.jobRemaining <= 0) {
+        const job = this.activeJobObj();
+        if (job) this.state.money += job.pay;
+        this.state.activeJob = null;
+        this.state.jobRemaining = 0;
+      }
     }
   }
 

@@ -4,6 +4,7 @@ import { BALANCE, EXERCISES, MUSCLES } from "./balance";
 import { FOODS } from "./nutrition";
 import { MARKET, CATEGORY_LABEL, type Category } from "./market";
 import { TREATMENTS } from "./hospital";
+import { JOBS } from "./jobs";
 import { Competition, TOURNAMENTS, type RoundResult, type Tournament } from "./competition";
 
 const game = new Game();
@@ -32,6 +33,7 @@ app.innerHTML = `
 
   <nav class="tabs">
     <button id="tab-gym" class="tab active">🏋️</button>
+    <button id="tab-work" class="tab">💼</button>
     <button id="tab-food" class="tab">🍽️</button>
     <button id="tab-market" class="tab">🛒</button>
     <button id="tab-hospital" class="tab">🏥</button>
@@ -64,6 +66,15 @@ app.innerHTML = `
       </section>
     </main>
     <nav id="exlist" class="exlist"></nav>
+  </div>
+
+  <div id="view-work" class="hidden">
+    <section class="panel">
+      <h2>💼 Work</h2>
+      <p class="muted">Earn money on the side while you build toward competitions. Each job takes time and pays when it's done — you can keep training meanwhile.</p>
+      <p id="jobstatus" class="cond"></p>
+      <div id="joblist" class="grid"></div>
+    </section>
   </div>
 
   <div id="view-food" class="hidden">
@@ -130,13 +141,14 @@ app.addEventListener("keydown", (e) => {
 });
 
 // ================= Tabs =================
-type Tab = "gym" | "food" | "market" | "hospital" | "arnold";
-const TABS: Tab[] = ["gym", "food", "market", "hospital", "arnold"];
+type Tab = "gym" | "work" | "food" | "market" | "hospital" | "arnold";
+const TABS: Tab[] = ["gym", "work", "food", "market", "hospital", "arnold"];
 function showTab(which: Tab) {
   for (const t of TABS) {
     $("view-" + t).classList.toggle("hidden", which !== t);
     $("tab-" + t).classList.toggle("active", which === t);
   }
+  if (which === "work") renderWork();
   if (which === "food") renderFood();
   if (which === "market") renderMarket();
   if (which === "hospital") renderHospital();
@@ -202,12 +214,37 @@ $("reset").addEventListener("click", () => {
     game.reset();
     comp = null;
     buildList();
+    renderWork();
     renderFood();
     renderMarket();
     renderHospital();
     renderArnold();
   }
 });
+
+// ================= Work =================
+function renderWork() {
+  const active = game.state.activeJob;
+  $("joblist").innerHTML = JOBS.map((j) => {
+    const unlocked = game.jobUnlocked(j);
+    const isActive = active === j.id;
+    const busy = !!active && !isActive;
+    const info = unlocked ? `+$${j.pay} · ${j.duration}s` : `🔒 Lv ${j.unlockLevel}`;
+    const prog = isActive
+      ? `<span class="jobprogwrap"><span id="jobprog" class="jobprog"></span></span>`
+      : "";
+    return `<button class="card job${isActive ? " working" : ""}" data-job="${j.id}"
+      ${!unlocked || busy || isActive ? "disabled" : ""}>
+      <span class="cemoji">${j.emoji}</span>
+      <span class="cname2">${j.name}</span>
+      <span class="ctags">${info}</span>
+      ${prog}
+    </button>`;
+  }).join("");
+  $("joblist")
+    .querySelectorAll<HTMLButtonElement>("[data-job]")
+    .forEach((b) => (b.onclick = () => game.startJob(b.dataset.job!) && renderWork()));
+}
 
 // ================= Food =================
 function renderFood() {
@@ -378,6 +415,7 @@ function renderArnold() {
 // ================= Render loop =================
 let last = performance.now();
 let shownLevel = -1; // rebuild the exercise list whenever the level changes
+let shownJob: string | null | undefined = undefined; // refresh Work view on job change
 function render(now: number) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
@@ -392,6 +430,18 @@ function render(now: number) {
   }
   $("money").textContent = Math.floor(game.state.money).toLocaleString("en-US");
   $("condhdr").textContent = String(game.conditioning());
+
+  // jobs: live status + progress, refresh the Work list when the job changes
+  const jobObj = game.activeJobObj();
+  $("jobstatus").textContent = jobObj
+    ? `Working: ${jobObj.emoji} ${jobObj.name} — ${Math.ceil(game.state.jobRemaining)}s left (+$${jobObj.pay})`
+    : "Not working right now.";
+  const jp = document.getElementById("jobprog");
+  if (jp) (jp as HTMLElement).style.width = game.jobProgress() * 100 + "%";
+  if (game.state.activeJob !== shownJob) {
+    shownJob = game.state.activeJob;
+    if (!$("view-work").classList.contains("hidden")) renderWork();
+  }
 
   const nextXp = game.xpForNextLevel();
   $<HTMLElement>("xpfill").style.width = Math.min(100, (game.state.xp / nextXp) * 100) + "%";
