@@ -6,6 +6,7 @@ import { MARKET, CATEGORY_LABEL, type Category } from "./market";
 import { TREATMENTS } from "./hospital";
 import { JOBS } from "./jobs";
 import { Competition, TOURNAMENTS, type RoundResult, type Tournament } from "./competition";
+import { ACHIEVEMENTS } from "./achievements";
 
 const game = new Game();
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -39,6 +40,7 @@ app.innerHTML = `
     <button id="tab-hospital" class="tab">🏥</button>
     <button id="tab-arnold" class="tab">🏆</button>
     <button id="tab-prestige" class="tab">🥤</button>
+    <button id="tab-achv" class="tab">🏅</button>
   </nav>
 
   <div id="view-gym">
@@ -129,6 +131,17 @@ app.innerHTML = `
     </section>
   </div>
 
+  <div id="view-achv" class="hidden">
+    <section class="panel">
+      <h2>🏅 Achievements</h2>
+      <p class="muted">Milestones you've unlocked. They persist across a New Season reset.</p>
+      <p class="cond">Unlocked: <b id="achvcount">0</b> / <b id="achvtotal">0</b></p>
+      <div id="achvlist" class="grid"></div>
+    </section>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+
   <footer class="footer">
     <button id="reset" class="reset">Reset progress</button>
     <span class="ver">v0.5 — From Scrawny to Swole</span>
@@ -157,8 +170,8 @@ app.addEventListener("keydown", (e) => {
 });
 
 // ================= Tabs =================
-type Tab = "gym" | "work" | "food" | "market" | "hospital" | "arnold" | "prestige";
-const TABS: Tab[] = ["gym", "work", "food", "market", "hospital", "arnold", "prestige"];
+type Tab = "gym" | "work" | "food" | "market" | "hospital" | "arnold" | "prestige" | "achv";
+const TABS: Tab[] = ["gym", "work", "food", "market", "hospital", "arnold", "prestige", "achv"];
 function showTab(which: Tab) {
   for (const t of TABS) {
     $("view-" + t).classList.toggle("hidden", which !== t);
@@ -170,6 +183,7 @@ function showTab(which: Tab) {
   if (which === "hospital") renderHospital();
   if (which === "arnold") renderArnold();
   if (which === "prestige") renderPrestige();
+  if (which === "achv") renderAchievements();
 }
 TABS.forEach((t) => $("tab-" + t).addEventListener("click", () => showTab(t)));
 
@@ -234,6 +248,7 @@ $("reset").addEventListener("click", () => {
     buildList();
     renderWork();
     renderPrestige();
+    renderAchievements();
     renderFood();
     renderMarket();
     renderHospital();
@@ -468,6 +483,28 @@ $("prestige-btn").addEventListener("click", () => {
   }
 });
 
+// ================= Achievements =================
+function renderAchievements() {
+  const unlocked = ACHIEVEMENTS.filter((a) => game.state.achievements[a.id]).length;
+  $("achvcount").textContent = String(unlocked);
+  $("achvtotal").textContent = String(ACHIEVEMENTS.length);
+  $("achvlist").innerHTML = ACHIEVEMENTS.map((a) => {
+    const got = !!game.state.achievements[a.id];
+    return `<div class="card achv${got ? " got" : " locked"}">
+      <span class="cemoji">${got ? a.emoji : "🔒"}</span>
+      <span class="cname2">${a.name}</span>
+      <span class="ctags">${a.desc}</span>
+    </div>`;
+  }).join("");
+}
+function toast(text: string) {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.textContent = text;
+  $("toasts").appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
 // ================= Render loop =================
 let last = performance.now();
 let shownLevel = -1; // rebuild the exercise list whenever the level changes
@@ -521,7 +558,12 @@ function render(now: number) {
 
   // Auto-Trainer control
   $("autolvl").textContent = String(game.state.autoLevel);
-  $("autorate").textContent = game.state.autoLevel > 0 ? ` · ${game.autoClicksPerSec()} reps/s` : "";
+  $("autorate").textContent =
+    game.state.autoLevel === 0
+      ? ""
+      : game.state.hunger <= 0 || game.state.health <= 0
+        ? " · paused (no energy)"
+        : ` · ${game.autoClicksPerSec()} reps/s`;
   const autobuy = $<HTMLButtonElement>("autobuy");
   if (game.autoMaxed()) {
     autobuy.textContent = "MAX";
@@ -577,6 +619,11 @@ function render(now: number) {
   $("avatarlbl").textContent = av.label;
 
   if (!$("view-prestige").classList.contains("hidden")) renderPrestige(); // live protein gain
+
+  for (const a of game.checkAchievements()) {
+    toast(`🏅 ${a.emoji} ${a.name} unlocked!`);
+    if (!$("view-achv").classList.contains("hidden")) renderAchievements();
+  }
 
   requestAnimationFrame(render);
 }

@@ -3,6 +3,7 @@ import { FOODS, type ActiveBuff } from "./nutrition";
 import { MARKET, type Modifiers } from "./market";
 import { TREATMENTS } from "./hospital";
 import { JOBS, type Job } from "./jobs";
+import { ACHIEVEMENTS, type Achievement } from "./achievements";
 
 const SAVE_KEY = "gym_incremental_save_v1";
 
@@ -25,8 +26,10 @@ export interface State {
   activeJob: string | null; // job currently being worked
   jobRemaining: number; // seconds left on the active job
   autoLevel: number; // Auto-Trainer level (idle reps)
+  jobsDone: number; // total jobs completed
   wonTournaments: Record<string, boolean>; // tournaments already won (first-win bonus)
   protein: number; // prestige currency (persists across a New Season reset)
+  achievements: Record<string, boolean>; // unlocked achievements (persist across prestige)
   arnoldWon: boolean;
 }
 
@@ -50,8 +53,10 @@ function initialState(): State {
     activeJob: null,
     jobRemaining: 0,
     autoLevel: 0,
+    jobsDone: 0,
     wonTournaments: {},
     protein: 0,
+    achievements: {},
     arnoldWon: false,
   };
 }
@@ -147,9 +152,11 @@ export class Game {
     if (gain < 1) return false;
     const keepProtein = this.state.protein + gain;
     const keepArnold = this.state.arnoldWon;
+    const keepAchievements = this.state.achievements;
     this.state = initialState();
     this.state.protein = keepProtein;
     this.state.arnoldWon = keepArnold;
+    this.state.achievements = keepAchievements;
     this.effort = 0;
     this.autoAcc = 0;
     return true;
@@ -301,6 +308,18 @@ export class Game {
     return { amount, first };
   }
 
+  // Latch any achievements whose condition is now met; return newly unlocked ones.
+  checkAchievements(): Achievement[] {
+    const fresh: Achievement[] = [];
+    for (const a of ACHIEVEMENTS) {
+      if (!this.state.achievements[a.id] && a.done(this)) {
+        this.state.achievements[a.id] = true;
+        fresh.push(a);
+      }
+    }
+    return fresh;
+  }
+
   // ---- Jobs ----
   jobUnlocked(job: Job): boolean {
     return this.state.level >= job.unlockLevel;
@@ -382,12 +401,22 @@ export class Game {
     // work the active job; food-requiring jobs burn hunger; pay out when finished
     if (this.state.activeJob) {
       const job = this.activeJobObj();
-      if (job?.needsFood) this.state.hunger = Math.max(0, this.state.hunger - 0.8 * dt);
-      this.state.jobRemaining -= dt;
-      if (this.state.jobRemaining <= 0) {
-        if (job) this.state.money += job.pay;
-        this.state.activeJob = null;
-        this.state.jobRemaining = 0;
+      if (job?.needsFood) {
+        this.state.hunger = Math.max(0, this.state.hunger - 0.8 * dt);
+        if (this.state.hunger <= 0) {
+          // ran out of food — the job is abandoned (no pay)
+          this.state.activeJob = null;
+          this.state.jobRemaining = 0;
+        }
+      }
+      if (this.state.activeJob) {
+        this.state.jobRemaining -= dt;
+        if (this.state.jobRemaining <= 0) {
+          if (job) this.state.money += job.pay;
+          this.state.jobsDone++;
+          this.state.activeJob = null;
+          this.state.jobRemaining = 0;
+        }
       }
     }
     // Auto-Trainer: perform automatic reps over time

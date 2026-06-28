@@ -7,8 +7,8 @@ export const BALANCE = {
   fatiguePerRepFactor: 0.35, // fatigue per rep = weight * factor
   fatigueMax: 100,
   fatigueRecoverPerSec: 6, // fatigue recovery (idle) per second
-  healthDrainBase: 0.03, // health lost per rep (overtraining)
-  healthDrainWeight: 0.0015, // extra health lost per rep, scaled by weight
+  healthDrainBase: 0.06, // health lost per rep (overtraining)
+  healthDrainWeight: 0.003, // extra health lost per rep, scaled by weight
   xpPerRepFactor: 1.0, // xp per rep = weight * factor * globalMultiplier
   levelBase: 100, // xp needed at level 0
   levelGrowth: 1.15, // nextXp = levelBase * growth^level

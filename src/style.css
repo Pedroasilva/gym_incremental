@@ -460,3 +460,33 @@ body {
   cursor: pointer;
 }
 .autobuy:disabled { opacity: 0.45; cursor: not-allowed; background: var(--panel2); color: var(--muted); }
+
+/* ===================== Achievements ===================== */
+.achv { cursor: default; }
+.achv.locked { opacity: 0.5; }
+.achv.got { border-color: var(--accent); }
+
+/* ===================== Toasts ===================== */
+.toasts {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+  pointer-events: none;
+}
+.toast {
+  background: var(--accent);
+  color: #14181f;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  animation: toastIn 0.25s ease, toastOut 0.4s ease 3.6s forwards;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateY(12px); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(-12px); } }
