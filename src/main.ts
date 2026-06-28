@@ -133,6 +133,7 @@ app.innerHTML = `
     <section class="panel">
       <h2>🥤 New Season (Prestige)</h2>
       <p class="muted">Cut down and restart your prep. You lose all current progress (strength, level, money, gear, physique) but earn permanent <b>Protein</b> that boosts every future gain. Arnold Champion status is kept.</p>
+      <p class="cond">Division: <b id="prestdiv">🩳 Men's Physique</b> <span id="prestnext" class="muted"></span></p>
       <p class="cond">Protein: <b id="proteinval">0</b> 🥤 · permanent bonus: <b id="prestmult">+0%</b> to all gains</p>
       <p class="cond">Reset now to earn: <b id="proteingain">0</b> 🥤</p>
       <div class="arow"><button id="prestige-btn" class="primary">Start New Season</button></div>
@@ -510,16 +511,25 @@ function renderPrestige() {
   $("proteinval").textContent = String(game.state.protein);
   $("prestmult").textContent = `+${Math.round((game.prestigeMult() - 1) * 100)}%`;
   $("proteingain").textContent = String(game.proteinGain());
+  const div = game.division();
+  $("prestdiv").textContent = `${div.emoji} ${div.name}`;
+  const next = game.nextDivision();
+  $("prestnext").textContent = next
+    ? `· next season → ${next.emoji} ${next.name}`
+    : "· at the Opens — top division reached 🏆";
   const btn = $<HTMLButtonElement>("prestige-btn");
   const gain = game.proteinGain();
-  btn.textContent = gain >= 1 ? `Start New Season (+${gain} 🥤)` : "Need more strength to prestige";
+  const promo = next ? ` → ${next.emoji} ${next.name}` : "";
+  btn.textContent = gain >= 1 ? `Start New Season (+${gain} 🥤)${promo}` : "Need more strength to prestige";
   btn.disabled = gain < 1;
   $("prestige-msg").textContent = gain < 1 ? "Earn strength until at least 1 🥤 is available." : "";
 }
 $("prestige-btn").addEventListener("click", () => {
   const gain = game.proteinGain();
   if (gain < 1) return;
-  if (confirm(`Start a New Season? You will reset all progress and gain +${gain} 🥤 (permanent +${gain * 10}% to all gains).`)) {
+  const next = game.nextDivision();
+  const promo = next ? ` and move up to ${next.emoji} ${next.name}` : "";
+  if (confirm(`Start a New Season? You will reset all progress, gain +${gain} 🥤 (permanent +${gain * 10}% to all gains)${promo}.`)) {
     game.prestige();
     comp = null;
     buildList();

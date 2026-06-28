@@ -36,9 +36,19 @@ export interface State {
   jobsDone: number; // total jobs completed
   wonTournaments: Record<string, number>; // win count per tournament (0/undefined = never won)
   protein: number; // prestige currency (persists across a New Season reset)
+  seasons: number; // New Seasons completed → Olympia division climbed (persists)
   achievements: Record<string, boolean>; // unlocked achievements (persist across prestige)
   arnoldWon: boolean;
 }
+
+// Olympia divisions, lightest to the pinnacle. Each New Season promotes the player
+// one division, climbing toward the Men's Open ("the Opens") — the top category.
+export const OLYMPIA_DIVISIONS = [
+  { name: "Men's Physique", emoji: "🩳" },
+  { name: "Classic Physique", emoji: "🕺" },
+  { name: "212 Bodybuilding", emoji: "💪" },
+  { name: "Men's Open", emoji: "🦍" },
+] as const;
 
 function initialState(): State {
   return {
@@ -69,6 +79,7 @@ function initialState(): State {
     jobsDone: 0,
     wonTournaments: {},
     protein: 0,
+    seasons: 0,
     achievements: {},
     arnoldWon: false,
   };
@@ -173,14 +184,30 @@ export class Game {
   canPrestige(): boolean {
     return this.proteinGain() >= 1;
   }
+  // Current Olympia division (rises one step per New Season, capped at Men's Open).
+  divisionIndex(): number {
+    return Math.min(this.state.seasons, OLYMPIA_DIVISIONS.length - 1);
+  }
+  division() {
+    return OLYMPIA_DIVISIONS[this.divisionIndex()];
+  }
+  // The division the next New Season would promote you to, or null if already at the top.
+  nextDivision() {
+    return this.atTopDivision() ? null : OLYMPIA_DIVISIONS[this.divisionIndex() + 1];
+  }
+  atTopDivision(): boolean {
+    return this.divisionIndex() >= OLYMPIA_DIVISIONS.length - 1;
+  }
   prestige(): boolean {
     const gain = this.proteinGain();
     if (gain < 1) return false;
     const keepProtein = this.state.protein + gain;
+    const keepSeasons = this.state.seasons + 1;
     const keepArnold = this.state.arnoldWon;
     const keepAchievements = this.state.achievements;
     this.state = initialState();
     this.state.protein = keepProtein;
+    this.state.seasons = keepSeasons;
     this.state.arnoldWon = keepArnold;
     this.state.achievements = keepAchievements;
     this.effort = 0;
