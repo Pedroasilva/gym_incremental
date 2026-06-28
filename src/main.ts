@@ -547,11 +547,13 @@ function render(now: number) {
       ? "too hungry — eat something!"
       : exhausted
         ? "muscle exhausted — rest or switch!"
-        : game.currentReps() < 1
-          ? "starts hard…"
-          : ease > 0.6
-            ? "flowing! 🔥"
-            : "getting easier…";
+        : game.state.health < 25
+          ? "overtraining — rest to recover health!"
+          : game.currentReps() < 1
+            ? "starts hard…"
+            : ease > 0.6
+              ? "flowing! 🔥"
+              : "getting easier…";
   $("barlbl").textContent = sick
     ? "HOSPITAL 🏥"
     : starving

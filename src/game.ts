@@ -241,6 +241,8 @@ export class Game {
       this.state.fatigue[ex.muscle] + (weight * BALANCE.fatiguePerRepFactor + 2) * mods.fatigueMult,
     );
     this.state.hunger = Math.max(0, this.state.hunger - (weight * 0.015 + 0.8));
+    // overtraining: each rep wears down health; rest/eat/work lets it recover
+    this.state.health = Math.max(0, this.state.health - (BALANCE.healthDrainBase + weight * BALANCE.healthDrainWeight));
 
     while (this.state.xp >= this.xpForNextLevel()) {
       this.state.xp -= this.xpForNextLevel();
