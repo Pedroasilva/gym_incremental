@@ -354,20 +354,37 @@ function renderMarket() {
   const cats: Category[] = ["equipment", "vitamin", "compound", "anabolic"];
   $("marketlist").innerHTML = cats
     .map((cat) => {
-      const items = MARKET.filter((i) => i.category === cat)
+      const inCat = MARKET.filter((i) => i.category === cat);
+      // available items: full cards with description + price
+      const available = inCat
+        .filter((i) => !game.owns(i.id))
         .map((i) => {
-          const owned = game.owns(i.id);
           const afford = game.state.money >= i.cost;
-          return `<button class="card mk${i.category === "anabolic" ? " bad" : ""}${owned ? " owned" : ""}"
-            data-buy="${i.id}" ${owned || !afford ? "disabled" : ""}>
+          return `<button class="card mk${i.category === "anabolic" ? " bad" : ""}"
+            data-buy="${i.id}" ${!afford ? "disabled" : ""}>
             <span class="cemoji">${i.emoji}</span>
             <span class="cname2">${i.name}</span>
             <span class="ctags">${i.desc}</span>
-            <span class="cost">${owned ? "✓ owned" : "$" + i.cost}</span>
+            <span class="cost">$${i.cost}</span>
           </button>`;
         })
         .join("");
-      return `<h3 class="cattl">${CATEGORY_LABEL[cat]}</h3><div class="grid">${items}</div>`;
+      // owned items: minimized to a compact chip with just the icon + title
+      const owned = inCat
+        .filter((i) => game.owns(i.id))
+        .map(
+          (i) => `<span class="card mk owned min" title="${i.desc}">
+            <span class="cemoji">${i.emoji}</span>
+            <span class="cname2">${i.name}</span>
+            <span class="cost">✓</span>
+          </span>`,
+        )
+        .join("");
+      return (
+        `<h3 class="cattl">${CATEGORY_LABEL[cat]}</h3>` +
+        (available ? `<div class="grid">${available}</div>` : "") +
+        (owned ? `<div class="chips">${owned}</div>` : "")
+      );
     })
     .join("");
   $("marketlist")
