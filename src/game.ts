@@ -363,11 +363,11 @@ export class Game {
   }
 
   // Fraction of the prize a win pays given how many times this show was already won:
-  // first win = full; each rematch pays steeply less than the last (0.2, 0.1, …),
-  // so repeat winnings tend to zero and can't outpace the entry fee for long.
+  // the first rematchFullWins wins pay the FULL prize, then each further win pays
+  // steeply less than the last (0.5, 0.35, …) so eventual farming still tends to zero.
   private prizeFactor(priorWins: number): number {
-    if (priorWins <= 0) return 1;
-    return BALANCE.rematchBase * Math.pow(BALANCE.rematchDecay, priorWins - 1);
+    if (priorWins < BALANCE.rematchFullWins) return 1;
+    return BALANCE.rematchBase * Math.pow(BALANCE.rematchDecay, priorWins - BALANCE.rematchFullWins);
   }
   // What the next win of this tournament would pay (for display) — gross, before fee.
   nextPrize(tournamentId: string, prize: number): number {
@@ -379,7 +379,9 @@ export class Game {
   }
   claimPrize(tournamentId: string, prize: number): { amount: number; first: boolean } {
     const priorWins = this.state.wonTournaments[tournamentId] ?? 0;
-    const first = priorWins <= 0;
+    // "first" here means a full-prize win (still inside the grace window), used by the
+    // UI to label it "Prize" vs a diminished "Rematch payout".
+    const first = priorWins < BALANCE.rematchFullWins;
     const amount = Math.round(prize * this.prizeFactor(priorWins) * this.itemMods().moneyMult);
     this.state.wonTournaments[tournamentId] = priorWins + 1;
     this.state.money += amount;
