@@ -78,6 +78,8 @@ export class Game {
   state: State;
   effort = 0;
   private autoAcc = 0; // fractional auto-clicks carried between ticks
+  // jobs finished this tick (drained by the UI to show a toast), name + pay earned
+  jobEvents: { name: string; emoji: string; pay: number }[] = [];
 
   constructor() {
     this.state = this.load();
@@ -519,7 +521,10 @@ export class Game {
       if (this.state.activeJob) {
         this.state.jobRemaining -= dt;
         if (this.state.jobRemaining <= 0) {
-          if (job) this.state.money += job.pay;
+          if (job) {
+            this.state.money += job.pay;
+            this.jobEvents.push({ name: job.name, emoji: job.emoji, pay: job.pay });
+          }
           this.state.jobsDone++;
           this.state.activeJob = null;
           this.state.jobRemaining = 0;
@@ -533,6 +538,7 @@ export class Game {
         const job = this.agentBestJob();
         if (job) {
           this.state.money += job.pay;
+          this.jobEvents.push({ name: job.name, emoji: job.emoji, pay: job.pay });
           this.state.jobsDone++;
           if (job.needsFood) this.state.hunger = Math.max(0, this.state.hunger - BALANCE.agentFoodCost);
         }

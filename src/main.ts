@@ -564,6 +564,10 @@ function render(now: number) {
   $("strength").textContent = Math.floor(game.state.strength).toLocaleString("en-US");
   $("level").textContent = String(game.state.level);
   if (game.state.level !== shownLevel) {
+    // don't toast on the first render (shownLevel starts at -1) or on a reset drop
+    if (shownLevel >= 0 && game.state.level > shownLevel) {
+      toast(`⭐ Level up! You're now Level ${game.state.level}.`);
+    }
     shownLevel = game.state.level;
     buildList(); // newly reached level unlocks exercises immediately
   }
@@ -717,6 +721,11 @@ function render(now: number) {
   for (const a of game.checkAchievements()) {
     toast(`🏅 ${a.emoji} ${a.name} unlocked!`);
     if (!$("view-achv").classList.contains("hidden")) renderAchievements();
+  }
+
+  if (game.jobEvents.length) {
+    for (const j of game.jobEvents) toast(`${j.emoji} ${j.name} done · +$${j.pay.toLocaleString("en-US")}`);
+    game.jobEvents.length = 0;
   }
 
   requestAnimationFrame(render);
