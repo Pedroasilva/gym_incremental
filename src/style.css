@@ -220,6 +220,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 8px;
+  margin-top: 12px; /* breathing room below the workout block */
 }
 .exbtn {
   padding: 12px 8px;
