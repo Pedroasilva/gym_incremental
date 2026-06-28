@@ -143,6 +143,31 @@ body {
 .weight button:active { transform: scale(0.92); }
 .weight b { color: var(--accent); }
 
+/* ---- Sets (séries) tracker ---- */
+.settrack {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.settrack b { color: var(--accent); }
+.setdots {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.setdots .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--panel2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: background 0.1s linear;
+}
+.setdots .dot.on { background: var(--accent); border-color: var(--accent); }
+
 /* ---- Effort bar ---- */
 .bar {
   position: relative;
@@ -156,6 +181,8 @@ body {
 }
 .bar:active { transform: scale(0.99); }
 .bar.exhausted { opacity: 0.6; cursor: not-allowed; }
+.bar.resting { opacity: 0.7; cursor: not-allowed; }
+.bar.resting .effort { background: #2980b9; }
 .effort {
   position: absolute;
   left: 0;

@@ -56,6 +56,10 @@ app.innerHTML = `
           <span>Weight: <b id="weightval">0</b> / <span id="weightmax">0</span> kg</span>
           <button id="weightUp">+</button>
         </div>
+        <div class="settrack">
+          <span class="setlbl">Set · <b id="setreps">0</b>/<span id="setper">12</span> reps · <b id="setsdone">0</b> done</span>
+          <div id="setdots" class="setdots"></div>
+        </div>
         <button id="bar" class="bar" aria-label="Do a rep">
           <span id="effort" class="effort"></span>
           <span id="barlbl" class="barlbl">CLICK TO PUSH</span>
@@ -230,8 +234,14 @@ barEl.addEventListener("click", (e) => {
   // Only real mouse/touch clicks count. Keyboard-triggered clicks (Enter/Space)
   // have detail === 0 — ignore them so the rep button can't be auto-fired.
   if ((e as MouseEvent).detail === 0) return;
+  const setsBefore = game.state.setsCompleted;
   if (game.push()) {
-    floatText(`+${Math.max(1, Math.round(game.selectedWeight() * game.globalMultiplier()))} 💪`);
+    if (game.state.setsCompleted > setsBefore) {
+      floatText("SET ✅");
+      toast(`✅ Set done! Rest ${BALANCE.restSeconds}s before the next series.`);
+    } else {
+      floatText(`+${Math.max(1, Math.round(game.selectedWeight() * game.globalMultiplier()))} 💪`);
+    }
   }
 });
 // Block keyboard activation entirely (no holding Enter to spam reps).
@@ -580,6 +590,26 @@ function render(now: number) {
   fill.style.background = `hsl(${ease * 130}, 80%, 50%)`;
 
   $("warmup").textContent = String(Math.floor(game.currentReps()));
+
+  // Sets (séries) tracker
+  const setReps = game.setReps();
+  const restLeft = game.restRemaining();
+  const resting = restLeft > 0;
+  $("setper").textContent = String(BALANCE.repsPerSet);
+  $("setreps").textContent = String(setReps);
+  $("setsdone").textContent = String(game.state.setsCompleted);
+  const dots = $("setdots");
+  if (dots.childElementCount !== BALANCE.repsPerSet) {
+    dots.innerHTML = Array.from({ length: BALANCE.repsPerSet }, () => `<span class="dot"></span>`).join("");
+  }
+  dots.querySelectorAll<HTMLElement>(".dot").forEach((d, i) => d.classList.toggle("on", i < setReps));
+  if (resting) {
+    // show the rest as a filling bar so the pause is visible
+    const eff = $<HTMLElement>("effort");
+    eff.style.width = (1 - restLeft / BALANCE.restSeconds) * 100 + "%";
+    eff.style.background = "#2980b9";
+  }
+
   const exhausted = game.muscleFatigue() >= BALANCE.fatigueMax;
   const starving = game.state.hunger <= 0;
   const sick = game.state.health <= 0;
@@ -587,23 +617,28 @@ function render(now: number) {
     ? "too sick — go to the hospital!"
     : starving
       ? "too hungry — eat something!"
-      : exhausted
-        ? "muscle exhausted — rest or switch!"
-        : game.state.health < 25
-          ? "overtraining — rest to recover health!"
-          : game.currentReps() < 1
-            ? "starts hard…"
-            : ease > 0.6
-              ? "flowing! 🔥"
-              : "getting easier…";
+      : resting
+        ? `resting between sets — ${Math.ceil(restLeft)}s (builds strength & conditioning)`
+        : exhausted
+          ? "muscle exhausted — rest or switch!"
+          : game.state.health < 25
+            ? "overtraining — rest to recover health!"
+            : game.currentReps() < 1
+              ? "starts hard…"
+              : ease > 0.6
+                ? "flowing! 🔥"
+                : "getting easier…";
   $("barlbl").textContent = sick
     ? "HOSPITAL 🏥"
     : starving
       ? "EAT 🍽️"
-      : exhausted
-        ? "REST 😮‍💨"
-        : `CLICK TO ${ex.name.toUpperCase()}`;
+      : resting
+        ? `RESTING ${Math.ceil(restLeft)}s 😮‍💨`
+        : exhausted
+          ? "REST 😮‍💨"
+          : `CLICK TO ${ex.name.toUpperCase()}`;
   $("bar").classList.toggle("exhausted", exhausted || starving || sick);
+  $("bar").classList.toggle("resting", resting);
 
   $("fatname").textContent = ex.muscle;
   const fat = game.muscleFatigue();

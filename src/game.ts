@@ -19,6 +19,10 @@ export interface State {
   currentExercise: string; // id
   weight: Record<string, number>; // chosen weight per exercise (kg)
   reps: Record<string, number>;
+  setReps: Record<string, number>; // reps done in the current set, per exercise (0..repsPerSet)
+  rest: Record<Muscle, number>; // forced rest remaining per muscle (seconds) between sets
+  setsCompleted: number; // total sets finished (stat / achievements)
+  setCondition: number; // conditioning earned from completing sets (the routine)
   fatigue: Record<Muscle, number>;
   physique: Record<Muscle, number>;
   owned: Record<string, boolean>; // market items owned
@@ -46,6 +50,10 @@ function initialState(): State {
     currentExercise: "crunch",
     weight: {},
     reps: {},
+    setReps: {},
+    rest: { core: 0, legs: 0, chest: 0, arms: 0, back: 0, fullbody: 0 },
+    setsCompleted: 0,
+    setCondition: 0,
     fatigue: { core: 0, legs: 0, chest: 0, arms: 0, back: 0, fullbody: 0 },
     physique: { core: 0, legs: 0, chest: 0, arms: 0, back: 0, fullbody: 0 },
     owned: {},
@@ -86,6 +94,17 @@ export class Game {
   }
   currentReps(ex = this.exercise()): number {
     return this.state.reps[ex.id] ?? 0;
+  }
+  // Reps completed in the current set (série) for this exercise.
+  setReps(ex = this.exercise()): number {
+    return this.state.setReps[ex.id] ?? 0;
+  }
+  // Seconds of forced rest still owed before a muscle can start its next set.
+  restRemaining(muscle = this.exercise().muscle): number {
+    return this.state.rest[muscle] ?? 0;
+  }
+  isResting(ex = this.exercise()): boolean {
+    return this.restRemaining(ex.muscle) > 0;
   }
   xpForNextLevel(): number {
     return Math.floor(BALANCE.levelBase * Math.pow(BALANCE.levelGrowth, this.state.level));
@@ -191,7 +210,8 @@ export class Game {
     const std = Math.sqrt(vals.reduce((a, v) => a + (v - mean) ** 2, 0) / vals.length);
     const symmetry = mean / (mean + std); // 0..1
     const base = 40 + symmetry * 45;
-    const value = base + this.state.dietCondition + this.itemMods().conditionMod - this.sideEffects();
+    const value =
+      base + this.state.setCondition + this.state.dietCondition + this.itemMods().conditionMod - this.sideEffects();
     return Math.max(0, Math.min(100, Math.round(value)));
   }
 
@@ -217,6 +237,7 @@ export class Game {
   push(): boolean {
     const ex = this.exercise();
     if (this.muscleFatigue() >= BALANCE.fatigueMax) return false;
+    if (this.restRemaining(ex.muscle) > 0) return false; // resting between sets
     if (this.state.hunger <= 0) return false; // too hungry to lift
     if (this.state.health <= 0) return false; // too sick to lift
 
@@ -250,6 +271,22 @@ export class Game {
     this.state.hunger = Math.max(0, this.state.hunger - (weight * 0.015 + 0.8));
     // overtraining: each rep wears down health; rest/eat/work lets it recover
     this.state.health = Math.max(0, this.state.health - (BALANCE.healthDrainBase + weight * BALANCE.healthDrainWeight));
+
+    // Sets (séries): every repsPerSet reps completes a set. Finishing a set is
+    // what truly builds the body — it grants a strength bonus, bumps conditioning,
+    // and forces a rest pause on that muscle before the next set can begin.
+    this.state.setReps[ex.id] = this.setReps(ex) + 1;
+    if (this.state.setReps[ex.id] >= BALANCE.repsPerSet) {
+      this.state.setReps[ex.id] = 0;
+      this.state.rest[ex.muscle] = BALANCE.restSeconds;
+      this.state.setsCompleted++;
+      const setXp =
+        (BALANCE.setStrengthBase + weight * BALANCE.setStrengthWeight) *
+        this.globalMultiplier() * mods.xpMult * this.buffMult("xpMult");
+      this.state.strength += setXp;
+      this.state.xp += setXp;
+      this.state.setCondition = Math.min(BALANCE.setConditionMax, this.state.setCondition + BALANCE.setConditionGain);
+    }
 
     while (this.state.xp >= this.xpForNextLevel()) {
       this.state.xp -= this.xpForNextLevel();
@@ -366,7 +403,7 @@ export class Game {
   private autoSwitch(): boolean {
     if (this.state.hunger <= 0 || this.state.health <= 0) return false;
     for (const ex of EXERCISES) {
-      if (this.unlocked(ex) && this.state.fatigue[ex.muscle] < BALANCE.fatigueMax) {
+      if (this.unlocked(ex) && this.state.fatigue[ex.muscle] < BALANCE.fatigueMax && this.state.rest[ex.muscle] <= 0) {
         if (ex.id !== this.state.currentExercise) this.selectExercise(ex.id);
         return true;
       }
@@ -379,6 +416,8 @@ export class Game {
       const active = this.exercise().muscle === m;
       const rate = active ? BALANCE.fatigueRecoverPerSec * 0.4 : BALANCE.fatigueRecoverPerSec;
       this.state.fatigue[m] = Math.max(0, this.state.fatigue[m] - rate * dt);
+      // count down the forced rest between sets for each muscle
+      if (this.state.rest[m] > 0) this.state.rest[m] = Math.max(0, this.state.rest[m] - dt);
     }
     for (const ex of EXERCISES) {
       if (ex.id !== this.state.currentExercise && (this.state.reps[ex.id] ?? 0) > 0) {
@@ -425,7 +464,8 @@ export class Game {
       let guard = 0;
       while (this.autoAcc >= 1 && guard++ < 300) {
         this.autoAcc -= 1;
-        if (this.muscleFatigue() >= BALANCE.fatigueMax && !this.autoSwitch()) break;
+        // exhausted or resting between sets → switch to a fresh muscle, or stop
+        if ((this.muscleFatigue() >= BALANCE.fatigueMax || this.restRemaining() > 0) && !this.autoSwitch()) break;
         if (this.state.hunger <= 0 || this.state.health <= 0) break;
         this.push(); // may partial-charge or complete a rep; state handled inside
       }

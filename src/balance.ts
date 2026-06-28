@@ -7,6 +7,12 @@ export const BALANCE = {
   fatiguePerRepFactor: 0.35, // fatigue per rep = weight * factor
   fatigueMax: 100,
   fatigueRecoverPerSec: 6, // fatigue recovery (idle) per second
+  repsPerSet: 12, // reps that make up one set (série) — like a real routine
+  restSeconds: 20, // forced rest between sets, per muscle (the pause)
+  setStrengthBase: 30, // bonus strength XP per completed set (+ weight scaling)
+  setStrengthWeight: 4, // extra set-bonus XP per kg lifted
+  setConditionGain: 1.5, // conditioning earned per completed set (the routine pays off)
+  setConditionMax: 30, // cap on conditioning earned from doing sets
   healthDrainBase: 0.06, // health lost per rep (overtraining)
   healthDrainWeight: 0.003, // extra health lost per rep, scaled by weight
   xpPerRepFactor: 1.0, // xp per rep = weight * factor * globalMultiplier

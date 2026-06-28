@@ -18,6 +18,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "firstrep", name: "First Rep", emoji: "🔰", desc: "Complete your first repetition", done: (g) => g.state.totalReps >= 1 },
   { id: "heavy", name: "Heavy Lifter", emoji: "🏋️", desc: "Load 100 kg on a lift", done: (g) => g.selectedWeight() >= 100 },
   { id: "grinder", name: "Grinder", emoji: "🔁", desc: "Do 1,000 total reps", done: (g) => g.state.totalReps >= 1000 },
+  { id: "firstset", name: "First Set", emoji: "✅", desc: "Complete your first full set", done: (g) => g.state.setsCompleted >= 1 },
+  { id: "routine", name: "On a Routine", emoji: "📋", desc: "Complete 100 sets", done: (g) => g.state.setsCompleted >= 100 },
   { id: "rising", name: "Rising Star", emoji: "⭐", desc: "Reach level 10", done: (g) => g.state.level >= 10 },
   { id: "strongman", name: "Strongman", emoji: "💪", desc: "Reach 5,000 strength", done: (g) => g.state.strength >= 5000 },
   { id: "beast", name: "Beast", emoji: "🦍", desc: "Reach 25,000 strength", done: (g) => g.state.strength >= 25000 },
