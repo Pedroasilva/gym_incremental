@@ -18,7 +18,8 @@ export interface State {
   health: number; // 0..100 (drained by anabolic side effects)
   dietCondition: number; // conditioning offset from food (drifts back to 0)
   recovering: number; // forced hospitalization lockout remaining (seconds); 0 = free
-  currentExercise: string; // id
+  currentExercise: string; // id (what's being trained right now)
+  preferredExercise: string; // id the player manually chose; the auto-trainer returns to it
   weight: Record<string, number>; // chosen weight per exercise (kg)
   reps: Record<string, number>;
   setReps: Record<string, number>; // reps done in the current set, per exercise (0..repsPerSet)
@@ -32,6 +33,7 @@ export interface State {
   activeJob: string | null; // job currently being worked
   jobRemaining: number; // seconds left on the active job
   autoLevel: number; // Auto-Trainer level (idle reps)
+  autoEnabled: boolean; // Auto-Trainer on/off switch (paused when false)
   agentLevel: number; // Business Agent level (auto-work); 0 = not hired
   agentTimer: number; // seconds until the Business Agent finishes its next job
   jobsDone: number; // total jobs completed
@@ -65,6 +67,7 @@ function initialState(): State {
     dietCondition: 0,
     recovering: 0,
     currentExercise: "crunch",
+    preferredExercise: "crunch",
     weight: {},
     reps: {},
     setReps: {},
@@ -78,6 +81,7 @@ function initialState(): State {
     activeJob: null,
     jobRemaining: 0,
     autoLevel: 0,
+    autoEnabled: true,
     agentLevel: 0,
     agentTimer: 0,
     jobsDone: 0,
@@ -273,7 +277,10 @@ export class Game {
   }
 
   // ---- Actions ----
-  selectExercise(id: string) {
+  // manual = a deliberate player choice (remembered so the auto-trainer returns to it);
+  // the auto-trainer passes manual=false when it temporarily borrows another muscle.
+  selectExercise(id: string, manual = true) {
+    if (manual) this.state.preferredExercise = id;
     if (this.state.currentExercise === id) return;
     this.state.currentExercise = id;
     this.effort = 0;
@@ -569,13 +576,22 @@ export class Game {
     this.state.autoLevel++;
     return true;
   }
+  toggleAuto() {
+    this.state.autoEnabled = !this.state.autoEnabled;
+  }
   // Switch to an unlocked exercise whose muscle isn't exhausted. Returns false if
   // none is available (or the body can't train at all right now).
+  private muscleAvailable(ex: Exercise): boolean {
+    return this.unlocked(ex) && this.state.fatigue[ex.muscle] < BALANCE.fatigueMax && this.state.rest[ex.muscle] <= 0;
+  }
   private autoSwitch(): boolean {
     if (this.state.hunger <= 0 || this.state.health <= 0) return false;
-    for (const ex of EXERCISES) {
-      if (this.unlocked(ex) && this.state.fatigue[ex.muscle] < BALANCE.fatigueMax && this.state.rest[ex.muscle] <= 0) {
-        if (ex.id !== this.state.currentExercise) this.selectExercise(ex.id);
+    // prefer the player's chosen exercise, then fall back to any available one
+    const pref = EXERCISES.find((e) => e.id === this.state.preferredExercise);
+    const order = pref ? [pref, ...EXERCISES.filter((e) => e.id !== pref.id)] : EXERCISES;
+    for (const ex of order) {
+      if (this.muscleAvailable(ex)) {
+        if (ex.id !== this.state.currentExercise) this.selectExercise(ex.id, false);
         return true;
       }
     }
@@ -665,11 +681,16 @@ export class Game {
       }
     }
     // Auto-Trainer: perform automatic reps over time
-    if (this.state.autoLevel > 0) {
+    if (this.state.autoLevel > 0 && this.state.autoEnabled) {
       this.autoAcc += this.autoClicksPerSec() * dt;
       let guard = 0;
       while (this.autoAcc >= 1 && guard++ < 300) {
         this.autoAcc -= 1;
+        // snap back to the player's chosen exercise as soon as its muscle is free again
+        const pref = EXERCISES.find((e) => e.id === this.state.preferredExercise);
+        if (pref && this.state.currentExercise !== pref.id && this.muscleAvailable(pref)) {
+          this.selectExercise(pref.id, false);
+        }
         // exhausted or resting between sets → switch to a fresh muscle, or stop
         if ((this.muscleFatigue() >= BALANCE.fatigueMax || this.restRemaining() > 0) && !this.autoSwitch()) break;
         if (this.state.hunger <= 0 || this.state.health <= 0) break;

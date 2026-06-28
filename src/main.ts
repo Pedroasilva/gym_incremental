@@ -75,7 +75,10 @@ app.innerHTML = `
     </main>
     <div class="autobox">
       <span class="autolbl">🤖 Auto-Trainer <b id="autolvl">0</b><span id="autorate" class="muted"></span></span>
-      <button id="autobuy" class="autobuy">Hire</button>
+      <span class="autoctrl">
+        <button id="autotoggle" class="autotoggle hidden">⏸ Pause</button>
+        <button id="autobuy" class="autobuy">Hire</button>
+      </span>
     </div>
     <nav id="exlist" class="exlist"></nav>
   </div>
@@ -289,6 +292,7 @@ function holdToRepeat(el: HTMLElement, step: () => void) {
 holdToRepeat($("weightDown"), () => game.changeWeight(-1));
 holdToRepeat($("weightUp"), () => game.changeWeight(1));
 $("autobuy").addEventListener("click", () => game.hireAuto());
+$("autotoggle").addEventListener("click", () => game.toggleAuto());
 $("agentbuy").addEventListener("click", () => game.hireAgent() && renderWork());
 $("chefbuy").addEventListener("click", () => game.hireChef() && renderFood());
 $("cheffood").addEventListener("change", (e) => game.markFood((e.target as HTMLSelectElement).value));
@@ -471,7 +475,9 @@ function leave() {
   renderArnold();
 }
 
-function renderArnold() {
+// Live player stats panel (physique bars + conditioning + side effects). Cheap to
+// run every frame, so the Competitions view reflects training without a tab switch.
+function renderArnoldStats() {
   const phys = $("physique");
   const maxVal = Math.max(1, ...MUSCLES.map((m) => game.state.physique[m.id]));
   phys.innerHTML = MUSCLES.map((m) => {
@@ -482,7 +488,10 @@ function renderArnold() {
   }).join("");
   $("condval").textContent = String(game.conditioning());
   $("sideval").textContent = String(Math.round(game.sideEffects()));
+}
 
+function renderArnold() {
+  renderArnoldStats();
   const body = $("arnold-body");
   if (!comp) {
     // tournament picker
@@ -609,6 +618,8 @@ function toast(text: string) {
 // ================= Render loop =================
 let last = performance.now();
 let shownLevel = -1; // rebuild the exercise list whenever the level changes
+let shownExercise = ""; // rebuild the exercise list when the active exercise changes
+let shownMoney = -1; // refresh the visible shop when money changes (affordability)
 let shownJob: string | null | undefined = undefined; // refresh Work view on job change
 function render(now: number) {
   const dt = Math.min(0.1, (now - last) / 1000);
@@ -625,6 +636,10 @@ function render(now: number) {
     }
     shownLevel = game.state.level;
     buildList(); // newly reached level unlocks exercises immediately
+  }
+  if (game.state.currentExercise !== shownExercise) {
+    shownExercise = game.state.currentExercise;
+    buildList(); // keep the exercise-list highlight in sync (e.g. auto-trainer switches)
   }
   $("money").textContent = Math.floor(game.state.money).toLocaleString("en-US");
   $("condhdr").textContent = String(game.conditioning());
@@ -666,9 +681,14 @@ function render(now: number) {
   $("autorate").textContent =
     game.state.autoLevel === 0
       ? ""
-      : game.state.hunger <= 0 || game.state.health <= 0
-        ? " · paused (no energy)"
-        : ` · ${game.autoClicksPerSec()} reps/s`;
+      : !game.state.autoEnabled
+        ? " · paused (off)"
+        : game.state.hunger <= 0 || game.state.health <= 0
+          ? " · paused (no energy)"
+          : ` · ${game.autoClicksPerSec()} reps/s`;
+  const autotoggle = $<HTMLButtonElement>("autotoggle");
+  autotoggle.classList.toggle("hidden", game.state.autoLevel === 0);
+  autotoggle.textContent = game.state.autoEnabled ? "⏸ Pause" : "▶ Resume";
   const autobuy = $<HTMLButtonElement>("autobuy");
   if (game.autoMaxed()) {
     autobuy.textContent = "MAX";
@@ -784,7 +804,16 @@ function render(now: number) {
   $("avatarlbl").textContent = av.label;
 
   if (!$("view-prestige").classList.contains("hidden")) renderPrestige(); // live protein gain
-  if (!$("view-food").classList.contains("hidden")) renderChef(); // live chef hire affordability
+  if (!$("view-arnold").classList.contains("hidden")) renderArnoldStats(); // live physique/conditioning
+  // when money changes, refresh the visible shop so affordability (enabled buttons) updates live
+  const moneyNow = Math.floor(game.state.money);
+  if (moneyNow !== shownMoney) {
+    shownMoney = moneyNow;
+    if (!$("view-market").classList.contains("hidden")) renderMarket();
+    if (!$("view-food").classList.contains("hidden")) renderFood();
+    if (!$("view-work").classList.contains("hidden")) renderWork();
+    if (!$("view-arnold").classList.contains("hidden") && !comp) renderArnold();
+  }
 
   for (const a of game.checkAchievements()) {
     toast(`🏅 ${a.emoji} ${a.name} unlocked!`);

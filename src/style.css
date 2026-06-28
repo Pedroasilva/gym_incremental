@@ -15,15 +15,22 @@
   touch-action: manipulation;
 }
 
+/* lock the page to the viewport so only .content scrolls (header stays fixed) */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   justify-content: center;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
 }
 
 #app {
@@ -42,6 +49,8 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -558,6 +567,17 @@ body {
   cursor: pointer;
 }
 .autobuy:disabled { opacity: 0.45; cursor: not-allowed; background: var(--panel2); color: var(--muted); }
+.autoctrl { display: flex; align-items: center; gap: 8px; }
+.autotoggle {
+  border: 1px solid #3a4150;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 700;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.autotoggle:hover { border-color: var(--accent); }
 
 /* ===================== Achievements ===================== */
 .achv { cursor: default; }
