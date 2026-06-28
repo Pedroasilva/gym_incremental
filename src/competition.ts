@@ -24,6 +24,9 @@ const RIVALS: RivalSpec[] = [
   { name: "Viktor Iron", tier: 520, imbalance: 0.25, conditioning: 80 },
   { name: "Diego Granite", tier: 760, imbalance: 0.2, conditioning: 86 },
   { name: "Magnus Titan", tier: 1050, imbalance: 0.15, conditioning: 92 },
+  { name: "Goliath Stone", tier: 1400, imbalance: 0.13, conditioning: 93 },
+  { name: "Atlas Prime", tier: 1850, imbalance: 0.12, conditioning: 95 },
+  { name: "Zeus Apex", tier: 2400, imbalance: 0.1, conditioning: 97 },
 ];
 
 export interface Tournament {
@@ -32,17 +35,26 @@ export interface Tournament {
   emoji: string;
   desc: string;
   prize: number; // money awarded for winning
+  entryFee: number; // money required (and spent) to enter — paid win or lose
   rivalIdx: number[]; // which rivals show up (fewer = less crowded)
   isArnold?: boolean;
 }
 
-// Smaller, less crowded shows give less money; the Arnold is the ultimate goal.
+// A smooth ladder of shows: each is a modest step up in prize and rival strength,
+// with the Arnold (the toughest field) as the summit. Every show charges an entry
+// fee (paid win or lose), so entering is a real bet — combined with the steeply
+// diminishing rematch payouts, farming an easy show quickly becomes a net loss.
 export const TOURNAMENTS: Tournament[] = [
-  { id: "local", name: "Local Gym Show", emoji: "🥉", desc: "3 weak rivals", prize: 150, rivalIdx: [0, 1, 2] },
-  { id: "city", name: "City Championship", emoji: "🥈", desc: "4 rivals", prize: 500, rivalIdx: [1, 2, 3, 4] },
-  { id: "regional", name: "Regional Open", emoji: "🥇", desc: "5 tough rivals", prize: 1500, rivalIdx: [2, 3, 4, 5, 6] },
-  { id: "national", name: "National Pro", emoji: "🏅", desc: "6 elite rivals", prize: 4000, rivalIdx: [1, 2, 3, 4, 5, 6] },
-  { id: "arnold", name: "Arnold Classic", emoji: "🏆", desc: "all 7 legends", prize: 10000, rivalIdx: [0, 1, 2, 3, 4, 5, 6], isArnold: true },
+  { id: "local", name: "Local Gym Show", emoji: "🥉", desc: "3 weak rivals", prize: 150, entryFee: 15, rivalIdx: [0, 1, 2] },
+  { id: "charity", name: "Charity Showdown", emoji: "🎗️", desc: "3 rivals", prize: 300, entryFee: 30, rivalIdx: [1, 2, 3] },
+  { id: "city", name: "City Championship", emoji: "🥈", desc: "3 rivals", prize: 550, entryFee: 50, rivalIdx: [2, 3, 4] },
+  { id: "state", name: "State Cup", emoji: "🏵️", desc: "4 rivals", prize: 950, entryFee: 90, rivalIdx: [2, 3, 4, 5] },
+  { id: "regional", name: "Regional Open", emoji: "🥇", desc: "4 tough rivals", prize: 1600, entryFee: 150, rivalIdx: [3, 4, 5, 6] },
+  { id: "qualifier", name: "Pro Qualifier", emoji: "🎫", desc: "5 tough rivals", prize: 2600, entryFee: 250, rivalIdx: [3, 4, 5, 6, 7] },
+  { id: "national", name: "National Pro", emoji: "🏅", desc: "5 elite rivals", prize: 4200, entryFee: 400, rivalIdx: [4, 5, 6, 7, 8] },
+  { id: "international", name: "International Invitational", emoji: "🌍", desc: "5 elite rivals", prize: 6500, entryFee: 600, rivalIdx: [5, 6, 7, 8, 9] },
+  { id: "olympiaq", name: "Olympia Qualifier", emoji: "🎟️", desc: "6 elite rivals", prize: 8200, entryFee: 800, rivalIdx: [4, 5, 6, 7, 8, 9] },
+  { id: "arnold", name: "Arnold Classic", emoji: "🏆", desc: "all 7 legends", prize: 11000, entryFee: 1000, rivalIdx: [3, 4, 5, 6, 7, 8, 9], isArnold: true },
 ];
 
 function rng(seed: number) {

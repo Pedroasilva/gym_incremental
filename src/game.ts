@@ -4,6 +4,7 @@ import { MARKET, type Modifiers } from "./market";
 import { TREATMENTS } from "./hospital";
 import { JOBS, type Job } from "./jobs";
 import { ACHIEVEMENTS, type Achievement } from "./achievements";
+import type { Tournament } from "./competition";
 
 const SAVE_KEY = "gym_incremental_save_v1";
 
@@ -33,7 +34,7 @@ export interface State {
   agentLevel: number; // Business Agent level (auto-work); 0 = not hired
   agentTimer: number; // seconds until the Business Agent finishes its next job
   jobsDone: number; // total jobs completed
-  wonTournaments: Record<string, boolean>; // tournaments already won (first-win bonus)
+  wonTournaments: Record<string, number>; // win count per tournament (0/undefined = never won)
   protein: number; // prestige currency (persists across a New Season reset)
   achievements: Record<string, boolean>; // unlocked achievements (persist across prestige)
   arnoldWon: boolean;
@@ -348,12 +349,37 @@ export class Game {
     return true;
   }
 
-  // First win of a tournament pays the full prize; rematches pay 20% (exhibition),
-  // so jobs stay relevant and shows can't be farmed for trivial infinite money.
+  // Entry fee: every show charges money to enter, paid win or lose. This (plus the
+  // diminishing rematch payouts below) makes farming an easy show a net loss.
+  canAffordEntry(t: Tournament): boolean {
+    return this.state.money >= t.entryFee;
+  }
+  payEntry(t: Tournament): boolean {
+    if (this.state.money < t.entryFee) return false;
+    this.state.money -= t.entryFee;
+    return true;
+  }
+
+  // Fraction of the prize a win pays given how many times this show was already won:
+  // first win = full; each rematch pays steeply less than the last (0.2, 0.1, …),
+  // so repeat winnings tend to zero and can't outpace the entry fee for long.
+  private prizeFactor(priorWins: number): number {
+    if (priorWins <= 0) return 1;
+    return BALANCE.rematchBase * Math.pow(BALANCE.rematchDecay, priorWins - 1);
+  }
+  // What the next win of this tournament would pay (for display) — gross, before fee.
+  nextPrize(tournamentId: string, prize: number): number {
+    const priorWins = this.state.wonTournaments[tournamentId] ?? 0;
+    return Math.round(prize * this.prizeFactor(priorWins) * this.itemMods().moneyMult);
+  }
+  timesWon(tournamentId: string): number {
+    return this.state.wonTournaments[tournamentId] ?? 0;
+  }
   claimPrize(tournamentId: string, prize: number): { amount: number; first: boolean } {
-    const first = !this.state.wonTournaments[tournamentId];
-    this.state.wonTournaments[tournamentId] = true;
-    const amount = Math.round((first ? prize : prize * 0.2) * this.itemMods().moneyMult);
+    const priorWins = this.state.wonTournaments[tournamentId] ?? 0;
+    const first = priorWins <= 0;
+    const amount = Math.round(prize * this.prizeFactor(priorWins) * this.itemMods().moneyMult);
+    this.state.wonTournaments[tournamentId] = priorWins + 1;
     this.state.money += amount;
     return { amount, first };
   }

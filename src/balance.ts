@@ -32,6 +32,8 @@ export const BALANCE = {
   agentIntervalStep: 15, // each level shortens the interval by this many seconds
   agentIntervalMin: 30, // floor on the auto-job interval
   agentFoodCost: 6, // hunger burned per auto-job when the chosen job needs food
+  rematchBase: 0.2, // first rematch pays this fraction of the prize (exhibition)
+  rematchDecay: 0.5, // each further rematch pays this fraction of the previous one
 };
 
 export type Muscle =

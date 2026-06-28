@@ -398,6 +398,7 @@ let lastPrize = 0;
 let lastPrizeFirst = false;
 
 function enter(t: Tournament) {
+  if (!game.payEntry(t)) return; // can't afford the entry fee
   comp = new Competition(t, game.state.physique, game.conditioning(), Date.now() & 0xffffff);
   lastResult = null;
   prizeAwarded = false;
@@ -440,15 +441,18 @@ function renderArnold() {
     body.innerHTML =
       `<div class="tlist">` +
       TOURNAMENTS.map((t) => {
-        const won = !!game.state.wonTournaments[t.id];
-        const prizeLine = won
-          ? `Won ✅ · rematch $${Math.round(t.prize * 0.2).toLocaleString("en-US")}`
+        const wins = game.timesWon(t.id);
+        const next = game.nextPrize(t.id, t.prize);
+        const prizeLine = wins
+          ? `Won ×${wins} ✅ · next $${next.toLocaleString("en-US")}`
           : `Prize $${t.prize.toLocaleString("en-US")}`;
-        return `<button class="tcard${t.isArnold ? " arnold" : ""}" data-enter="${t.id}">
+        const fee = game.canAffordEntry(t);
+        return `<button class="tcard${t.isArnold ? " arnold" : ""}${fee ? "" : " bad"}" data-enter="${t.id}" ${fee ? "" : "disabled"}>
           <span class="temoji">${t.emoji}</span>
           <span class="tname">${t.name}</span>
           <span class="tdesc">${t.desc}</span>
           <span class="tprize">${prizeLine}</span>
+          <span class="tfee">Entry $${t.entryFee.toLocaleString("en-US")}${fee ? "" : " — can't afford"}</span>
         </button>`;
       }).join("") +
       `</div>`;
