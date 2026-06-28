@@ -66,7 +66,7 @@ app.innerHTML = `
         </button>
         <p class="reptxt">Warm-up reps: <b id="warmup">0</b> — <span id="hint">starts hard…</span></p>
         <div class="fatigue">
-          <span>Fatigue <b id="fatname">core</b></span>
+          <span>Fatigue <b id="fatname">core</b><span id="fatpen" class="muted"></span></span>
           <div class="fatbar"><span id="fatfill" class="fatfill"></span></div>
         </div>
         <div id="buffs" class="buffs"></div>
@@ -610,7 +610,9 @@ function render(now: number) {
     eff.style.background = "#2980b9";
   }
 
-  const exhausted = game.muscleFatigue() >= BALANCE.fatigueMax;
+  const fat = game.muscleFatigue();
+  const fatPen = Math.round((1 - game.fatigueFactor()) * 100);
+  const exhausted = fat >= BALANCE.fatigueMax;
   const starving = game.state.hunger <= 0;
   const sick = game.state.health <= 0;
   $("hint").textContent = sick
@@ -623,11 +625,13 @@ function render(now: number) {
           ? "muscle exhausted — rest or switch!"
           : game.state.health < 25
             ? "overtraining — rest to recover health!"
-            : game.currentReps() < 1
-              ? "starts hard…"
-              : ease > 0.6
-                ? "flowing! 🔥"
-                : "getting easier…";
+            : fat >= 50
+              ? `muscle tiring — pushes ${fatPen}% weaker, rest or switch`
+              : game.currentReps() < 1
+                ? "starts hard…"
+                : ease > 0.6
+                  ? "flowing! 🔥"
+                  : "getting easier…";
   $("barlbl").textContent = sick
     ? "HOSPITAL 🏥"
     : starving
@@ -641,9 +645,9 @@ function render(now: number) {
   $("bar").classList.toggle("resting", resting);
 
   $("fatname").textContent = ex.muscle;
-  const fat = game.muscleFatigue();
   $<HTMLElement>("fatfill").style.width = fat + "%";
   $<HTMLElement>("fatfill").style.background = fat >= BALANCE.fatigueMax ? "#c0392b" : "#e67e22";
+  $("fatpen").textContent = fatPen > 0 ? ` · −${fatPen}% effort` : "";
 
   $("buffs").innerHTML = game.state.buffs
     .map((b) => `<span class="buff">${b.emoji} ${Math.ceil(b.remaining)}s</span>`)

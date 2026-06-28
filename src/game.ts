@@ -193,6 +193,14 @@ export class Game {
     return 0.3 + (this.state.health / 30) * 0.7;
   }
 
+  // Fatigue factor: a tired muscle pushes weaker — effort per click drops linearly
+  // from 1.0 (fresh) to 1 - fatiguePenaltyMax (exhausted). Below the 100 hard cap
+  // this is the gradual penalty; at 100 the muscle is fully blocked (see push()).
+  fatigueFactor(): number {
+    const f = Math.min(1, this.muscleFatigue() / BALANCE.fatigueMax); // 0..1
+    return 1 - f * BALANCE.fatiguePenaltyMax;
+  }
+
   sideEffects(): number {
     return Math.max(0, this.itemMods().sideEffect);
   }
@@ -200,7 +208,7 @@ export class Game {
   // Effort added per click, after gear, buffs and hunger.
   effectiveClick(): number {
     const base = BALANCE.clickPower + this.itemMods().clickAdd;
-    return Math.max(1, base) * this.buffMult("clickMult") * this.hungerFactor() * this.healthFactor();
+    return Math.max(1, base) * this.buffMult("clickMult") * this.hungerFactor() * this.healthFactor() * this.fatigueFactor();
   }
 
   // Stage conditioning shown to the judges (symmetry + diet + gear - side effects).

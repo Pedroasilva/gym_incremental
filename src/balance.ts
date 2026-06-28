@@ -6,6 +6,7 @@ export const BALANCE = {
   decayCap: 28, // warm-up rep limit (cost never reaches zero)
   fatiguePerRepFactor: 0.35, // fatigue per rep = weight * factor
   fatigueMax: 100,
+  fatiguePenaltyMax: 0.5, // max effort-per-click penalty at full fatigue (0.5 = -50%)
   fatigueRecoverPerSec: 6, // fatigue recovery (idle) per second
   repsPerSet: 12, // reps that make up one set (série) — like a real routine
   restSeconds: 20, // forced rest between sets, per muscle (the pause)
