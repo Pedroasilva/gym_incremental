@@ -238,8 +238,9 @@ export class Game {
     const ex = this.exercise();
     const current = this.selectedWeight(ex);
     const next = Math.max(ex.minWeight, Math.min(this.maxLift(ex), current + delta * ex.step));
+    if (next === current) return; // already at the cap/floor — keep current effort progress
     this.state.weight[ex.id] = next;
-    this.effort = 0;
+    this.effort = 0; // weight changed → rep cost changed, so reset the partial effort
   }
 
   push(): boolean {
