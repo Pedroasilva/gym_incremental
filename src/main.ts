@@ -10,15 +10,24 @@ const game = new Game();
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
 app.innerHTML = `
-  <header class="top">
-    <span>💪 <b id="strength">0</b></span>
-    <span>⭐ Lv <b id="level">0</b></span>
-    <span>💵 $<b id="money">0</b></span>
-    <span class="xp"><span id="xpfill" class="xpfill"></span><b id="xptxt"></b></span>
+  <header class="stats">
+    <div class="stat"><span class="sicon">💪</span><span class="sval" id="strength">0</span><span class="slbl">Strength</span></div>
+    <div class="stat"><span class="sicon">⭐</span><span class="sval" id="level">0</span><span class="slbl">Level</span></div>
+    <div class="stat"><span class="sicon">💵</span><span class="sval" id="money">60</span><span class="slbl">Money</span></div>
+    <div class="stat"><span class="sicon">🎽</span><span class="sval" id="condhdr">40</span><span class="slbl">Condition</span></div>
   </header>
+  <div class="xpbar"><span id="xpfill" class="xpfill"></span><b id="xptxt"></b></div>
   <div class="meters">
-    <div class="meter">🍽️<div class="mbar"><span id="hungerfill"></span></div><b id="hungerval">100</b></div>
-    <div class="meter">❤️<div class="mbar"><span id="healthfill"></span></div><b id="healthval">100</b></div>
+    <div class="meter">
+      <span class="mlbl">🍽️ Hunger</span>
+      <div class="mbar"><span id="hungerfill"></span></div>
+      <b id="hungerval">100</b>
+    </div>
+    <div class="meter">
+      <span class="mlbl">❤️ Health</span>
+      <div class="mbar"><span id="healthfill"></span></div>
+      <b id="healthval">100</b>
+    </div>
   </div>
 
   <nav class="tabs">
@@ -100,6 +109,25 @@ app.innerHTML = `
 `;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+// ===== Global: pointer/touch only — block ALL keyboard button activation =====
+// Stop keyboard-synthesized clicks (Enter/Space, detail === 0) before they reach
+// any button handler, and suppress the key itself so nothing auto-repeats.
+app.addEventListener(
+  "click",
+  (e) => {
+    if ((e as MouseEvent).detail === 0 && (e.target as HTMLElement)?.closest("button")) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  },
+  true,
+);
+app.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " " || e.key === "Spacebar") && (e.target as HTMLElement)?.closest("button")) {
+    e.preventDefault();
+  }
+});
 
 // ================= Tabs =================
 type Tab = "gym" | "food" | "market" | "hospital" | "arnold";
@@ -349,6 +377,7 @@ function renderArnold() {
 
 // ================= Render loop =================
 let last = performance.now();
+let shownLevel = -1; // rebuild the exercise list whenever the level changes
 function render(now: number) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
@@ -357,7 +386,12 @@ function render(now: number) {
   const ex = game.exercise();
   $("strength").textContent = Math.floor(game.state.strength).toLocaleString("en-US");
   $("level").textContent = String(game.state.level);
+  if (game.state.level !== shownLevel) {
+    shownLevel = game.state.level;
+    buildList(); // newly reached level unlocks exercises immediately
+  }
   $("money").textContent = Math.floor(game.state.money).toLocaleString("en-US");
+  $("condhdr").textContent = String(game.conditioning());
 
   const nextXp = game.xpForNextLevel();
   $<HTMLElement>("xpfill").style.width = Math.min(100, (game.state.xp / nextXp) * 100) + "%";

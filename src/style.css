@@ -33,25 +33,41 @@ body {
   padding: 14px;
 }
 
-/* ---- Top status ---- */
-.top {
+/* ---- Top status: character stat cards ---- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.stat {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
+  flex-direction: column;
   align-items: center;
+  gap: 2px;
   background: var(--panel);
   border-radius: 12px;
-  padding: 12px 14px;
-  font-size: 14px;
+  padding: 10px 6px;
 }
-.top b { color: var(--accent); }
-.xp {
+.sicon { font-size: 20px; line-height: 1; }
+.sval {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1.1;
+}
+.slbl {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---- XP bar ---- */
+.xpbar {
   position: relative;
-  flex: 1 1 120px;
-  min-width: 120px;
-  height: 16px;
+  height: 18px;
   background: #0d1117;
-  border-radius: 8px;
+  border-radius: 9px;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -67,7 +83,7 @@ body {
   background: linear-gradient(90deg, #2980b9, #3498db);
   transition: width 0.15s ease;
 }
-.xp b { position: relative; color: #fff; }
+.xpbar b { position: relative; color: #fff; font-weight: 700; }
 
 /* ---- Stage ---- */
 .stage {
@@ -246,20 +262,22 @@ body {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   background: var(--panel);
   border-radius: 10px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   font-size: 13px;
 }
+.mlbl { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .mbar {
   flex: 1;
-  height: 10px;
+  height: 14px;
   background: #0d1117;
-  border-radius: 6px;
+  border-radius: 7px;
   overflow: hidden;
 }
 .mbar span { display: block; height: 100%; width: 100%; transition: width 0.2s ease, background 0.2s; }
+.meter b { min-width: 26px; text-align: right; }
 
 /* ===================== Tabs ===================== */
 .tabs { display: flex; gap: 6px; }
