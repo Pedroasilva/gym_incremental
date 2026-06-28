@@ -38,6 +38,7 @@ app.innerHTML = `
     <button id="tab-market" class="tab">🛒</button>
     <button id="tab-hospital" class="tab">🏥</button>
     <button id="tab-arnold" class="tab">🏆</button>
+    <button id="tab-prestige" class="tab">🥤</button>
   </nav>
 
   <div id="view-gym">
@@ -117,6 +118,17 @@ app.innerHTML = `
     </section>
   </div>
 
+  <div id="view-prestige" class="hidden">
+    <section class="panel">
+      <h2>🥤 New Season (Prestige)</h2>
+      <p class="muted">Cut down and restart your prep. You lose all current progress (strength, level, money, gear, physique) but earn permanent <b>Protein</b> that boosts every future gain. Arnold Champion status is kept.</p>
+      <p class="cond">Protein: <b id="proteinval">0</b> 🥤 · permanent bonus: <b id="prestmult">+0%</b> to all gains</p>
+      <p class="cond">Reset now to earn: <b id="proteingain">0</b> 🥤</p>
+      <div class="arow"><button id="prestige-btn" class="primary">Start New Season</button></div>
+      <p id="prestige-msg" class="arnold-msg"></p>
+    </section>
+  </div>
+
   <footer class="footer">
     <button id="reset" class="reset">Reset progress</button>
     <span class="ver">v0.5 — From Scrawny to Swole</span>
@@ -145,8 +157,8 @@ app.addEventListener("keydown", (e) => {
 });
 
 // ================= Tabs =================
-type Tab = "gym" | "work" | "food" | "market" | "hospital" | "arnold";
-const TABS: Tab[] = ["gym", "work", "food", "market", "hospital", "arnold"];
+type Tab = "gym" | "work" | "food" | "market" | "hospital" | "arnold" | "prestige";
+const TABS: Tab[] = ["gym", "work", "food", "market", "hospital", "arnold", "prestige"];
 function showTab(which: Tab) {
   for (const t of TABS) {
     $("view-" + t).classList.toggle("hidden", which !== t);
@@ -157,6 +169,7 @@ function showTab(which: Tab) {
   if (which === "market") renderMarket();
   if (which === "hospital") renderHospital();
   if (which === "arnold") renderArnold();
+  if (which === "prestige") renderPrestige();
 }
 TABS.forEach((t) => $("tab-" + t).addEventListener("click", () => showTab(t)));
 
@@ -220,6 +233,7 @@ $("reset").addEventListener("click", () => {
     comp = null;
     buildList();
     renderWork();
+    renderPrestige();
     renderFood();
     renderMarket();
     renderHospital();
@@ -234,12 +248,17 @@ function renderWork() {
     const unlocked = game.jobUnlocked(j);
     const isActive = active === j.id;
     const busy = !!active && !isActive;
-    const info = unlocked ? `+$${j.pay} · ${j.duration}s` : `🔒 Lv ${j.unlockLevel}`;
+    const noFood = unlocked && j.needsFood && game.state.hunger <= 0;
+    const info = !unlocked
+      ? `🔒 Lv ${j.unlockLevel}`
+      : noFood
+        ? "🍽️ needs food"
+        : `+$${j.pay} · ${j.duration}s${j.needsFood ? "" : " · no food"}`;
     const prog = isActive
       ? `<span class="jobprogwrap"><span id="jobprog" class="jobprog"></span></span>`
       : "";
-    return `<button class="card job${isActive ? " working" : ""}" data-job="${j.id}"
-      ${!unlocked || busy || isActive ? "disabled" : ""}>
+    return `<button class="card job${isActive ? " working" : ""}${noFood ? " bad" : ""}" data-job="${j.id}"
+      ${!unlocked || busy || isActive || noFood ? "disabled" : ""}>
       <span class="cemoji">${j.emoji}</span>
       <span class="cname2">${j.name}</span>
       <span class="ctags">${info}</span>
@@ -425,6 +444,30 @@ function renderArnold() {
   }
 }
 
+// ================= Prestige =================
+function renderPrestige() {
+  $("proteinval").textContent = String(game.state.protein);
+  $("prestmult").textContent = `+${Math.round((game.prestigeMult() - 1) * 100)}%`;
+  $("proteingain").textContent = String(game.proteinGain());
+  const btn = $<HTMLButtonElement>("prestige-btn");
+  const gain = game.proteinGain();
+  btn.textContent = gain >= 1 ? `Start New Season (+${gain} 🥤)` : "Need more strength to prestige";
+  btn.disabled = gain < 1;
+  $("prestige-msg").textContent = gain < 1 ? "Earn strength until at least 1 🥤 is available." : "";
+}
+$("prestige-btn").addEventListener("click", () => {
+  const gain = game.proteinGain();
+  if (gain < 1) return;
+  if (confirm(`Start a New Season? You will reset all progress and gain +${gain} 🥤 (permanent +${gain * 10}% to all gains).`)) {
+    game.prestige();
+    comp = null;
+    buildList();
+    renderWork();
+    renderPrestige();
+    showTab("gym");
+  }
+});
+
 // ================= Render loop =================
 let last = performance.now();
 let shownLevel = -1; // rebuild the exercise list whenever the level changes
@@ -521,6 +564,8 @@ function render(now: number) {
   const av = avatar(game.state.strength);
   $("avatar").textContent = av.emoji;
   $("avatarlbl").textContent = av.label;
+
+  if (!$("view-prestige").classList.contains("hidden")) renderPrestige(); // live protein gain
 
   requestAnimationFrame(render);
 }

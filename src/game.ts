@@ -26,6 +26,7 @@ export interface State {
   jobRemaining: number; // seconds left on the active job
   autoLevel: number; // Auto-Trainer level (idle reps)
   wonTournaments: Record<string, boolean>; // tournaments already won (first-win bonus)
+  protein: number; // prestige currency (persists across a New Season reset)
   arnoldWon: boolean;
 }
 
@@ -50,6 +51,7 @@ function initialState(): State {
     jobRemaining: 0,
     autoLevel: 0,
     wonTournaments: {},
+    protein: 0,
     arnoldWon: false,
   };
 }
@@ -117,7 +119,32 @@ export class Game {
   }
 
   globalMultiplier(): number {
-    return 1 + this.state.level * 0.05;
+    return (1 + this.state.level * 0.05) * this.prestigeMult();
+  }
+
+  // ---- Prestige (New Season / Bulk-Cut) ----
+  // Permanent multiplier from accumulated Protein: +10% to all gains each.
+  prestigeMult(): number {
+    return 1 + this.state.protein * 0.1;
+  }
+  // Protein you'd earn by resetting now, based on accumulated strength.
+  proteinGain(): number {
+    return Math.floor(Math.sqrt(this.state.strength / 500));
+  }
+  canPrestige(): boolean {
+    return this.proteinGain() >= 1;
+  }
+  prestige(): boolean {
+    const gain = this.proteinGain();
+    if (gain < 1) return false;
+    const keepProtein = this.state.protein + gain;
+    const keepArnold = this.state.arnoldWon;
+    this.state = initialState();
+    this.state.protein = keepProtein;
+    this.state.arnoldWon = keepArnold;
+    this.effort = 0;
+    this.autoAcc = 0;
+    return true;
   }
 
   // Hunger factor: training is weak when starving.
@@ -192,7 +219,7 @@ export class Game {
     this.state.xp += xp;
     // reps no longer earn money — money comes only from competition prizes
 
-    const muscleMult = mods.muscleMult * this.buffMult("muscleMult");
+    const muscleMult = mods.muscleMult * this.buffMult("muscleMult") * this.prestigeMult();
     const gain = (weight * 0.1 + 0.2) * muscleMult;
     if (ex.muscle === "fullbody") {
       for (const m of Object.keys(this.state.physique) as Muscle[]) this.state.physique[m] += gain * 0.3;
@@ -279,9 +306,13 @@ export class Game {
     if (this.state.activeJob) return false; // already busy
     const job = JOBS.find((j) => j.id === id);
     if (!job || !this.jobUnlocked(job)) return false;
+    if (job.needsFood && this.state.hunger <= 0) return false; // too hungry to work
     this.state.activeJob = id;
     this.state.jobRemaining = job.duration;
     return true;
+  }
+  canStartJob(job: Job): boolean {
+    return this.jobUnlocked(job) && !(job.needsFood && this.state.hunger <= 0);
   }
 
   // ---- Auto-Trainer (idle reps) ----
@@ -337,11 +368,12 @@ export class Game {
       for (const b of this.state.buffs) b.remaining -= dt;
       this.state.buffs = this.state.buffs.filter((b) => b.remaining > 0);
     }
-    // work the active job; pay out when finished
+    // work the active job; food-requiring jobs burn hunger; pay out when finished
     if (this.state.activeJob) {
+      const job = this.activeJobObj();
+      if (job?.needsFood) this.state.hunger = Math.max(0, this.state.hunger - 0.8 * dt);
       this.state.jobRemaining -= dt;
       if (this.state.jobRemaining <= 0) {
-        const job = this.activeJobObj();
         if (job) this.state.money += job.pay;
         this.state.activeJob = null;
         this.state.jobRemaining = 0;
