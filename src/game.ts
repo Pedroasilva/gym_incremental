@@ -30,7 +30,7 @@ function initialState(): State {
     level: 0,
     xp: 0,
     totalReps: 0,
-    money: 0,
+    money: 60, // small starting cushion to buy food before the first prize
     hunger: 100,
     health: 100,
     dietCondition: 0,
@@ -180,7 +180,7 @@ export class Game {
     const xp = (weight * BALANCE.xpPerRepFactor || 1) * this.globalMultiplier() * mods.xpMult * this.buffMult("xpMult");
     this.state.strength += xp;
     this.state.xp += xp;
-    this.state.money += (weight * 0.05 + 0.5) * mods.moneyMult;
+    // reps no longer earn money — money comes only from competition prizes
 
     const muscleMult = mods.muscleMult * this.buffMult("muscleMult");
     const gain = (weight * 0.1 + 0.2) * muscleMult;
@@ -205,7 +205,8 @@ export class Game {
 
   eat(foodId: string): boolean {
     const food = FOODS.find((f) => f.id === foodId);
-    if (!food) return false;
+    if (!food || this.state.money < food.cost) return false;
+    this.state.money -= food.cost;
     this.state.hunger = Math.min(100, this.state.hunger + food.satiety);
     this.state.dietCondition = Math.max(-40, Math.min(40, this.state.dietCondition + food.condition));
     if (food.duration > 0) {
@@ -243,7 +244,7 @@ export class Game {
   }
 
   awardPrize(amount: number) {
-    this.state.money += amount;
+    this.state.money += amount * this.itemMods().moneyMult; // gear can boost winnings
   }
 
   tick(dt: number) {

@@ -181,15 +181,17 @@ function renderFood() {
     if (f.xpMult !== 1) tags.push(`×${f.xpMult} XP`);
     if (f.clickMult !== 1) tags.push(`×${f.clickMult} energy`);
     if (f.muscleMult !== 1) tags.push(`×${f.muscleMult} muscle`);
-    return `<button class="card${f.condition < 0 ? " bad" : ""}" data-food="${f.id}">
+    const afford = game.state.money >= f.cost;
+    return `<button class="card${f.condition < 0 ? " bad" : ""}" data-food="${f.id}" ${afford ? "" : "disabled"}>
       <span class="cemoji">${f.emoji}</span>
       <span class="cname2">${f.name}</span>
       <span class="ctags">${tags.join(" · ")}</span>
+      <span class="cost">$${f.cost}</span>
     </button>`;
   }).join("");
   $("foodlist")
     .querySelectorAll<HTMLButtonElement>("[data-food]")
-    .forEach((b) => (b.onclick = () => game.eat(b.dataset.food!)));
+    .forEach((b) => (b.onclick = () => game.eat(b.dataset.food!) && renderFood()));
 }
 
 // ================= Market =================
