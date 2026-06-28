@@ -16,6 +16,9 @@ export const BALANCE = {
   setConditionMax: 30, // cap on conditioning earned from doing sets
   healthDrainBase: 0.06, // health lost per rep (overtraining)
   healthDrainWeight: 0.003, // extra health lost per rep, scaled by weight
+  collapseHealth: 10, // health at/below this forces an emergency hospitalization
+  collapseSeconds: 60, // forced recovery lockout (no training) while hospitalized
+  collapseLoss: 0.2, // fraction of gains (strength, level, conditioning) lost on collapse
   xpPerRepFactor: 1.0, // xp per rep = weight * factor * globalMultiplier
   levelBase: 100, // xp needed at level 0
   levelGrowth: 1.15, // nextXp = levelBase * growth^level

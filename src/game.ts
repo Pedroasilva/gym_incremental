@@ -17,6 +17,7 @@ export interface State {
   hunger: number; // 0..100 (100 = full)
   health: number; // 0..100 (drained by anabolic side effects)
   dietCondition: number; // conditioning offset from food (drifts back to 0)
+  recovering: number; // forced hospitalization lockout remaining (seconds); 0 = free
   currentExercise: string; // id
   weight: Record<string, number>; // chosen weight per exercise (kg)
   reps: Record<string, number>;
@@ -60,6 +61,7 @@ function initialState(): State {
     hunger: 100,
     health: 100,
     dietCondition: 0,
+    recovering: 0,
     currentExercise: "crunch",
     weight: {},
     reps: {},
@@ -91,6 +93,8 @@ export class Game {
   private autoAcc = 0; // fractional auto-clicks carried between ticks
   // jobs finished this tick (drained by the UI to show a toast), name + pay earned
   jobEvents: { name: string; emoji: string; pay: number }[] = [];
+  justCollapsed = false; // set when an emergency hospitalization starts (UI toast)
+  justRecovered = false; // set when a recovery lockout finishes (UI toast)
 
   constructor() {
     this.state = this.load();
@@ -279,6 +283,7 @@ export class Game {
 
   push(): boolean {
     const ex = this.exercise();
+    if (this.state.recovering > 0) return false; // hospitalized — can't train
     if (this.muscleFatigue() >= BALANCE.fatigueMax) return false;
     if (this.restRemaining(ex.muscle) > 0) return false; // resting between sets
     if (this.state.hunger <= 0) return false; // too hungry to lift
@@ -376,6 +381,42 @@ export class Game {
       this.state.physique[m] *= 1 - t.shapeLoss; // shape suffers while bedridden
     }
     return true;
+  }
+
+  // ---- Emergency collapse ----
+  // When health bottoms out (≤ collapseHealth) the player is rushed to hospital:
+  // locked out of training for collapseSeconds, healed up, and loses collapseLoss
+  // (20%) of accumulated gains — strength, level and conditioning (physique + sets).
+  isRecovering(): boolean {
+    return this.state.recovering > 0;
+  }
+  private collapse() {
+    const keep = 1 - BALANCE.collapseLoss;
+    this.state.strength *= keep;
+    this.state.xp *= keep;
+    this.state.level = Math.floor(this.state.level * keep);
+    this.state.setCondition *= keep;
+    for (const m of Object.keys(this.state.physique) as Muscle[]) {
+      this.state.physique[m] *= keep;
+    }
+    this.state.recovering = BALANCE.collapseSeconds;
+    this.state.health = 100; // treated and stabilized, but locked in recovery
+    this.state.activeJob = null; // can't keep working from a hospital bed
+    this.state.jobRemaining = 0;
+    this.justCollapsed = true; // surfaced to the UI for a toast
+  }
+  // Leaving the hospital: wipe every negative status so the player starts fresh —
+  // full health/hunger, no fatigue, no forced rest, no diet/side-effect deficit.
+  private clearNegativeStatuses() {
+    this.state.health = 100;
+    this.state.hunger = 100;
+    this.state.dietCondition = Math.max(0, this.state.dietCondition);
+    for (const m of Object.keys(this.state.fatigue) as Muscle[]) {
+      this.state.fatigue[m] = 0;
+      this.state.rest[m] = 0;
+    }
+    this.effort = 0;
+    this.justRecovered = true; // surfaced to the UI for a toast
   }
 
   // Entry fee: every show charges money to enter, paid win or lose. This (plus the
@@ -530,10 +571,19 @@ export class Game {
         this.state.reps[ex.id] = Math.max(0, this.state.reps[ex.id] - 2 * dt);
       }
     }
+    // forced hospitalization: count down the recovery lockout; when it ends, clear
+    // all negative statuses so the player leaves the hospital completely fresh.
+    if (this.state.recovering > 0) {
+      this.state.recovering = Math.max(0, this.state.recovering - dt);
+      if (this.state.recovering <= 0) this.clearNegativeStatuses();
+      return; // bedridden: skip training/jobs/automation this tick
+    }
     // health: anabolic side effects drain it; recovers slowly when clean
     const se = this.sideEffects();
     this.state.health = Math.max(0, Math.min(100, this.state.health + (0.4 - se * 0.06) * dt));
     if (this.state.hunger <= 0) this.state.health = Math.max(0, this.state.health - 0.5 * dt);
+    // collapse: health bottomed out → emergency hospitalization (20% gains lost)
+    if (this.state.health <= BALANCE.collapseHealth) this.collapse();
     // hunger slowly drops over time; diet conditioning drifts back to 0
     this.state.hunger = Math.max(0, this.state.hunger - 0.4 * dt);
     if (this.state.dietCondition > 0) this.state.dietCondition = Math.max(0, this.state.dietCondition - 0.6 * dt);

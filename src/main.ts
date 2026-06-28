@@ -684,7 +684,16 @@ function render(now: number) {
   const exhausted = fat >= BALANCE.fatigueMax;
   const starving = game.state.hunger <= 0;
   const sick = game.state.health <= 0;
-  $("hint").textContent = sick
+  const recovering = game.isRecovering();
+  if (recovering) {
+    // hospitalized: show the recovery as a filling bar with a live countdown
+    const eff = $<HTMLElement>("effort");
+    eff.style.width = (1 - game.state.recovering / BALANCE.collapseSeconds) * 100 + "%";
+    eff.style.background = "#8e44ad";
+  }
+  $("hint").textContent = recovering
+    ? `hospitalized — recovering ${Math.ceil(game.state.recovering)}s (−${Math.round(BALANCE.collapseLoss * 100)}% gains lost)`
+    : sick
     ? "too sick — go to the hospital!"
     : starving
       ? "too hungry — eat something!"
@@ -701,17 +710,19 @@ function render(now: number) {
                 : ease > 0.6
                   ? "flowing! 🔥"
                   : "getting easier…";
-  $("barlbl").textContent = sick
-    ? "HOSPITAL 🏥"
-    : starving
-      ? "EAT 🍽️"
-      : resting
-        ? `RESTING ${Math.ceil(restLeft)}s 😮‍💨`
-        : exhausted
-          ? "REST 😮‍💨"
-          : `CLICK TO ${ex.name.toUpperCase()}`;
-  $("bar").classList.toggle("exhausted", exhausted || starving || sick);
-  $("bar").classList.toggle("resting", resting);
+  $("barlbl").textContent = recovering
+    ? `🏥 RECOVERING ${Math.ceil(game.state.recovering)}s`
+    : sick
+      ? "HOSPITAL 🏥"
+      : starving
+        ? "EAT 🍽️"
+        : resting
+          ? `RESTING ${Math.ceil(restLeft)}s 😮‍💨`
+          : exhausted
+            ? "REST 😮‍💨"
+            : `CLICK TO ${ex.name.toUpperCase()}`;
+  $("bar").classList.toggle("exhausted", exhausted || starving || sick || recovering);
+  $("bar").classList.toggle("resting", resting && !recovering);
 
   $("fatname").textContent = ex.muscle;
   $<HTMLElement>("fatfill").style.width = fat + "%";
@@ -736,6 +747,15 @@ function render(now: number) {
   if (game.jobEvents.length) {
     for (const j of game.jobEvents) toast(`${j.emoji} ${j.name} done · +$${j.pay.toLocaleString("en-US")}`);
     game.jobEvents.length = 0;
+  }
+
+  if (game.justCollapsed) {
+    game.justCollapsed = false;
+    toast(`🏥 Collapsed! Emergency hospital — recovering ${BALANCE.collapseSeconds}s, −${Math.round(BALANCE.collapseLoss * 100)}% gains.`);
+  }
+  if (game.justRecovered) {
+    game.justRecovered = false;
+    toast(`💪 Recovered! Back to full health — all negative statuses cleared.`);
   }
 
   requestAnimationFrame(render);
