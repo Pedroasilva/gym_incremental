@@ -7,6 +7,7 @@ import { TREATMENTS } from "./hospital";
 import { JOBS } from "./jobs";
 import { Competition, TOURNAMENTS, type RoundResult, type Tournament } from "./competition";
 import { ACHIEVEMENTS } from "./achievements";
+import { PRESTIGE_UPGRADES } from "./prestige";
 
 const game = new Game();
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -147,6 +148,11 @@ app.innerHTML = `
       <p class="cond">Reset now to earn: <b id="proteingain">0</b> 🥤</p>
       <div class="arow"><button id="prestige-btn" class="primary">Start New Season</button></div>
       <p id="prestige-msg" class="arnold-msg"></p>
+    </section>
+    <section class="panel">
+      <h2>🧬 Protein Upgrades</h2>
+      <p class="muted">Spend <b>Protein</b> 🥤 on permanent upgrades — they persist across every New Season. Several tame the downsides (fatigue, side effects, hunger).</p>
+      <div id="upgradelist" class="grid"></div>
     </section>
   </div>
 
@@ -561,6 +567,28 @@ function renderArnold() {
 }
 
 // ================= Prestige =================
+let shownProtein = -1; // rebuild the upgrade list only when Protein changes (it's static otherwise)
+function renderUpgrades(force = false) {
+  if (!force && game.state.protein === shownProtein && $("upgradelist").childElementCount) return;
+  shownProtein = game.state.protein;
+  $("upgradelist").innerHTML = PRESTIGE_UPGRADES.map((u) => {
+    const lvl = game.upgradeLevel(u.id);
+    const maxed = game.upgradeMaxed(u);
+    const cost = game.upgradeCost(u);
+    const canBuy = game.canBuyUpgrade(u);
+    const costLine = maxed ? "MAX" : `${cost} 🥤`;
+    return `<button class="card mk${maxed ? " owned" : ""}" data-upg="${u.id}" ${canBuy ? "" : "disabled"}>
+      <span class="cemoji">${u.emoji}</span>
+      <span class="cname2">${u.name} <small class="muted">Lv ${lvl}/${u.maxLevel}</small></span>
+      <span class="ctags">${u.desc(lvl)}${maxed ? "" : ` → ${u.desc(lvl + 1)}`}</span>
+      <span class="cost">${costLine}</span>
+    </button>`;
+  }).join("");
+  $("upgradelist")
+    .querySelectorAll<HTMLButtonElement>("[data-upg]")
+    .forEach((b) => (b.onclick = () => game.buyUpgrade(b.dataset.upg!) && renderPrestige()));
+}
+
 function renderPrestige() {
   $("proteinval").textContent = String(game.state.protein);
   $("prestmult").textContent = `+${Math.round((game.prestigeMult() - 1) * 100)}%`;
@@ -577,13 +605,14 @@ function renderPrestige() {
   btn.textContent = gain >= 1 ? `Start New Season (+${gain} 🥤)${promo}` : "Need more strength to prestige";
   btn.disabled = gain < 1;
   $("prestige-msg").textContent = gain < 1 ? "Earn strength until at least 1 🥤 is available." : "";
+  renderUpgrades();
 }
 $("prestige-btn").addEventListener("click", () => {
   const gain = game.proteinGain();
   if (gain < 1) return;
   const next = game.nextDivision();
   const promo = next ? ` and move up to ${next.emoji} ${next.name}` : "";
-  if (confirm(`Start a New Season? You will reset all progress, gain +${gain} 🥤 (permanent +${gain * 10}% to all gains)${promo}.`)) {
+  if (confirm(`Start a New Season? You will reset all progress and gain +${gain} 🥤 to spend on permanent upgrades${promo}.`)) {
     game.prestige();
     comp = null;
     buildList();

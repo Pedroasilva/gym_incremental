@@ -5,6 +5,7 @@ import { TREATMENTS } from "./hospital";
 import { JOBS, type Job } from "./jobs";
 import { ACHIEVEMENTS, type Achievement } from "./achievements";
 import { TOURNAMENTS, type Tournament } from "./competition";
+import { PRESTIGE_UPGRADES, type PrestigeUpgrade } from "./prestige";
 
 const SAVE_KEY = "gym_incremental_save_v1";
 
@@ -41,7 +42,9 @@ export interface State {
   chefHired: boolean; // Personal Chef hired (auto-feeds you the marked food)
   markedFood: string | null; // food id the chef buys when hunger runs low
   protein: number; // prestige currency (persists across a New Season reset)
+  proteinUpgrades: Record<string, number>; // permanent prestige upgrade levels (persist)
   seasons: number; // New Seasons completed → Olympia division climbed (persists)
+  collapses: number; // times the player has collapsed into emergency hospital (stat)
   achievements: Record<string, boolean>; // unlocked achievements (persist across prestige)
   arnoldWon: boolean;
   lastSeen: number; // epoch ms of the last save — used to compute offline progress
@@ -90,7 +93,9 @@ function initialState(): State {
     chefHired: false,
     markedFood: null,
     protein: 0,
+    proteinUpgrades: {},
     seasons: 0,
+    collapses: 0,
     achievements: {},
     arnoldWon: false,
     lastSeen: Date.now(),
@@ -221,9 +226,45 @@ export class Game {
   }
 
   // ---- Prestige (New Season / Bulk-Cut) ----
-  // Permanent multiplier from accumulated Protein: +10% to all gains each.
+  // ---- Prestige upgrades (bought with Protein, persist across seasons) ----
+  upgradeLevel(id: string): number {
+    return this.state.proteinUpgrades[id] ?? 0;
+  }
+  upgradeMaxed(u: PrestigeUpgrade): boolean {
+    return this.upgradeLevel(u.id) >= u.maxLevel;
+  }
+  upgradeCost(u: PrestigeUpgrade): number {
+    return u.cost(this.upgradeLevel(u.id));
+  }
+  canBuyUpgrade(u: PrestigeUpgrade): boolean {
+    return !this.upgradeMaxed(u) && this.state.protein >= this.upgradeCost(u);
+  }
+  buyUpgrade(id: string): boolean {
+    const u = PRESTIGE_UPGRADES.find((x) => x.id === id);
+    if (!u || !this.canBuyUpgrade(u)) return false;
+    this.state.protein -= this.upgradeCost(u);
+    this.state.proteinUpgrades[id] = this.upgradeLevel(id) + 1;
+    return true;
+  }
+  // Permanent global multiplier from the Protein Synthesis upgrade: +10% per level.
   prestigeMult(): number {
-    return 1 + this.state.protein * 0.1;
+    return 1 + this.upgradeLevel("synthesis") * 0.1;
+  }
+  // Negative-effect mitigations and bonuses from the other upgrades:
+  private upgradeFatigueMult(): number {
+    return Math.max(0, 1 - this.upgradeLevel("metabolism") * 0.08);
+  }
+  private upgradeSideEffectMult(): number {
+    return Math.max(0, 1 - this.upgradeLevel("liver") * 0.15);
+  }
+  hungerDrainMult(): number {
+    return Math.max(0, 1 - this.upgradeLevel("stomach") * 0.1);
+  }
+  upgradeMoneyMult(): number {
+    return 1 + this.upgradeLevel("hustle") * 0.12;
+  }
+  private upgradeClickMult(): number {
+    return 1 + this.upgradeLevel("power") * 0.08;
   }
   // Protein you'd earn by resetting now, based on accumulated strength.
   proteinGain(): number {
@@ -250,12 +291,16 @@ export class Game {
     const gain = this.proteinGain();
     if (gain < 1) return false;
     const keepProtein = this.state.protein + gain;
+    const keepUpgrades = this.state.proteinUpgrades;
     const keepSeasons = this.state.seasons + 1;
+    const keepCollapses = this.state.collapses;
     const keepArnold = this.state.arnoldWon;
     const keepAchievements = this.state.achievements;
     this.state = initialState();
     this.state.protein = keepProtein;
+    this.state.proteinUpgrades = keepUpgrades;
     this.state.seasons = keepSeasons;
+    this.state.collapses = keepCollapses;
     this.state.arnoldWon = keepArnold;
     this.state.achievements = keepAchievements;
     this.effort = 0;
@@ -284,13 +329,20 @@ export class Game {
   }
 
   sideEffects(): number {
-    return Math.max(0, this.itemMods().sideEffect);
+    return Math.max(0, this.itemMods().sideEffect) * this.upgradeSideEffectMult();
   }
 
   // Effort added per click, after gear, buffs and hunger.
   effectiveClick(): number {
     const base = BALANCE.clickPower + this.itemMods().clickAdd;
-    return Math.max(1, base) * this.buffMult("clickMult") * this.hungerFactor() * this.healthFactor() * this.fatigueFactor();
+    return (
+      Math.max(1, base) *
+      this.upgradeClickMult() *
+      this.buffMult("clickMult") *
+      this.hungerFactor() *
+      this.healthFactor() *
+      this.fatigueFactor()
+    );
   }
 
   // Stage conditioning shown to the judges (symmetry + diet + gear - side effects).
@@ -361,7 +413,7 @@ export class Game {
 
     this.state.fatigue[ex.muscle] = Math.min(
       BALANCE.fatigueMax,
-      this.state.fatigue[ex.muscle] + (weight * BALANCE.fatiguePerRepFactor + 2) * mods.fatigueMult,
+      this.state.fatigue[ex.muscle] + (weight * BALANCE.fatiguePerRepFactor + 2) * mods.fatigueMult * this.upgradeFatigueMult(),
     );
     this.state.hunger = Math.max(0, this.state.hunger - (weight * 0.015 + 0.8));
     // overtraining: each rep wears down health; rest/eat/work lets it recover
@@ -468,6 +520,7 @@ export class Game {
     this.state.health = 100; // treated and stabilized, but locked in recovery
     this.state.activeJob = null; // can't keep working from a hospital bed
     this.state.jobRemaining = 0;
+    this.state.collapses++;
     this.justCollapsed = true; // surfaced to the UI for a toast
   }
   // Leaving the hospital: wipe every negative status so the player starts fresh —
@@ -506,7 +559,7 @@ export class Game {
   // Clamped so a (diminished) prize never drops to or below the entry fee — it always
   // pays at least entryFee + 1, so entering and winning is never a guaranteed loss.
   private payout(tournamentId: string, prize: number, priorWins: number): number {
-    const raw = Math.round(prize * this.prizeFactor(priorWins) * this.itemMods().moneyMult);
+    const raw = Math.round(prize * this.prizeFactor(priorWins) * this.itemMods().moneyMult * this.upgradeMoneyMult());
     const fee = TOURNAMENTS.find((t) => t.id === tournamentId)?.entryFee ?? 0;
     return Math.max(raw, fee + 1);
   }
@@ -660,7 +713,7 @@ export class Game {
     // collapse: health bottomed out → emergency hospitalization (20% gains lost)
     if (this.state.health <= BALANCE.collapseHealth) this.collapse();
     // hunger slowly drops over time; diet conditioning drifts back to 0
-    this.state.hunger = Math.max(0, this.state.hunger - 0.4 * dt);
+    this.state.hunger = Math.max(0, this.state.hunger - 0.4 * dt * this.hungerDrainMult());
     if (this.state.dietCondition > 0) this.state.dietCondition = Math.max(0, this.state.dietCondition - 0.6 * dt);
     else if (this.state.dietCondition < 0) this.state.dietCondition = Math.min(0, this.state.dietCondition + 0.6 * dt);
     // Personal Chef: when hunger runs low, auto-buy the marked food (spends money)
@@ -691,8 +744,9 @@ export class Game {
         this.state.jobRemaining -= dt;
         if (this.state.jobRemaining <= 0) {
           if (job) {
-            this.state.money += job.pay;
-            this.jobEvents.push({ name: job.name, emoji: job.emoji, pay: job.pay });
+            const pay = Math.round(job.pay * this.upgradeMoneyMult());
+            this.state.money += pay;
+            this.jobEvents.push({ name: job.name, emoji: job.emoji, pay });
           }
           this.state.jobsDone++;
           this.state.activeJob = null;
@@ -706,8 +760,9 @@ export class Game {
       if (this.state.agentTimer <= 0) {
         const job = this.agentBestJob();
         if (job) {
-          this.state.money += job.pay;
-          this.jobEvents.push({ name: job.name, emoji: job.emoji, pay: job.pay });
+          const pay = Math.round(job.pay * this.upgradeMoneyMult());
+          this.state.money += pay;
+          this.jobEvents.push({ name: job.name, emoji: job.emoji, pay });
           this.state.jobsDone++;
           if (job.needsFood) this.state.hunger = Math.max(0, this.state.hunger - BALANCE.agentFoodCost);
         }

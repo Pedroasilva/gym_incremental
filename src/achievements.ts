@@ -28,6 +28,12 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "localchamp", name: "Local Champ", emoji: "🥉", desc: "Win the Local Gym Show", done: (g) => !!g.state.wonTournaments["local"] },
   { id: "arnold", name: "Arnold Champion", emoji: "🏆", desc: "Win the Arnold Classic", done: (g) => g.state.arnoldWon },
   { id: "enhanced", name: "Enhanced", emoji: "💉", desc: "Own an anabolic", done: (g) => ownsCategory(g, "anabolic") },
-  { id: "season", name: "New Season", emoji: "🥤", desc: "Prestige at least once", done: (g) => g.state.protein >= 1 },
+  { id: "season", name: "New Season", emoji: "🥤", desc: "Prestige at least once", done: (g) => g.state.seasons >= 1 },
   { id: "burnout", name: "Burnout", emoji: "🤕", desc: "Let your health hit 0", done: (g) => g.state.health <= 0 },
+  { id: "collapse", name: "Overtrained", emoji: "🚑", desc: "Survive an emergency collapse", done: (g) => g.state.collapses >= 1 },
+  { id: "chef", name: "Fine Dining", emoji: "👨‍🍳", desc: "Hire the Personal Chef", done: (g) => g.state.chefHired },
+  { id: "upgraded", name: "Min-Maxer", emoji: "🧪", desc: "Buy a prestige upgrade", done: (g) => Object.values(g.state.proteinUpgrades).some((v) => v > 0) },
+  { id: "openclass", name: "Open Class", emoji: "🦍", desc: "Reach the Men's Open division", done: (g) => g.atTopDivision() },
+  { id: "millionaire", name: "Big Money", emoji: "💎", desc: "Hold $10,000 at once", done: (g) => g.state.money >= 10000 },
+  { id: "veteran", name: "Veteran", emoji: "🎖️", desc: "Do 10,000 total reps", done: (g) => g.state.totalReps >= 10000 },
 ];
