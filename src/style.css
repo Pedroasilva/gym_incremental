@@ -482,6 +482,13 @@ body {
 .out { font-size: 11px; color: #e74c3c; }
 
 .arow { display: flex; gap: 8px; margin-top: 10px; }
+.running {
+  font-weight: 700;
+  color: var(--accent);
+  padding: 8px 4px;
+  animation: pulse 1.1s ease-in-out infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 .primary {
   flex: 1;
   padding: 12px;

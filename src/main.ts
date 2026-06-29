@@ -449,7 +449,9 @@ function renderHospital() {
 }
 
 // ================= Competitions =================
+const ROUND_DELAY = 1100; // ms between auto-played elimination rounds (time to watch)
 let comp: Competition | null = null;
+let compTimer: ReturnType<typeof setTimeout> | null = null;
 let lastResult: RoundResult | null = null;
 let prizeAwarded = false;
 let lastPrize = 0;
@@ -457,12 +459,15 @@ let lastPrizeFirst = false;
 
 function enter(t: Tournament) {
   if (!game.payEntry(t)) return; // can't afford the entry fee
+  if (compTimer) clearTimeout(compTimer);
   comp = new Competition(t, game.state.physique, game.conditioning(), Date.now() & 0xffffff);
   lastResult = null;
   prizeAwarded = false;
   renderArnold();
+  // auto-play the whole bracket: rounds run on a timer, no clicking — just watch
+  compTimer = setTimeout(autoStep, ROUND_DELAY);
 }
-function nextRound() {
+function autoStep() {
   if (!comp || comp.finished) return;
   lastResult = comp.nextRound(Date.now() & 0xffffff);
   if (comp.finished && comp.playerWon() && !prizeAwarded) {
@@ -474,8 +479,11 @@ function nextRound() {
     game.save();
   }
   renderArnold();
+  if (comp && !comp.finished) compTimer = setTimeout(autoStep, ROUND_DELAY);
 }
 function leave() {
+  if (compTimer) clearTimeout(compTimer);
+  compTimer = null;
   comp = null;
   lastResult = null;
   renderArnold();
@@ -536,14 +544,12 @@ function renderArnold() {
           <span class="cscore">${score}</span>${status}</div>`;
       })
       .join("");
-    const over = comp.finished || comp.playerEliminated();
-    const ctrl = over
+    // rounds auto-play on a timer — show progress while running, a button when done
+    const ctrl = comp.finished
       ? `<button id="leave" class="primary">Back to competitions</button>`
-      : `<button id="next" class="primary">Run ${comp.currentRoundName} →</button>
-         <button id="leave" class="ghost">Withdraw</button>`;
+      : `<span class="running">⏳ ${comp.currentRoundName}…</span>`;
     body.innerHTML = `<h3 class="cattl">${comp.tournament.emoji} ${comp.tournament.name}</h3>
       <div class="lineup">${lineup}</div><div class="arow">${ctrl}</div>`;
-    $("next")?.addEventListener("click", nextRound);
     $("leave")?.addEventListener("click", leave);
   }
 
