@@ -347,6 +347,9 @@ body {
   font-size: 13px;
 }
 .mlbl { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.trend { font-size: 10px; font-weight: 700; cursor: help; }
+.trend.down { color: #e74c3c; }
+.trend.up { color: #27ae60; }
 .mbar {
   flex: 1;
   height: 14px;

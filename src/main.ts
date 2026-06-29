@@ -29,7 +29,7 @@ app.innerHTML = `
       <b id="hungerval">100</b>
     </div>
     <div class="meter">
-      <span class="mlbl">❤️ Health</span>
+      <span class="mlbl">❤️ Health <span id="healthtrend" class="trend" title="Every rep wears down health (overtraining). It only recovers while you rest — pause the Auto-Trainer or stop clicking to heal, or you'll collapse."></span></span>
       <div class="mbar"><span id="healthfill"></span></div>
       <b id="healthval">100</b>
     </div>
@@ -127,6 +127,7 @@ app.innerHTML = `
     <section class="panel">
       <h2>🏥 Hospital</h2>
       <p class="muted">When health gets too low (usually from anabolics), get treated. Treatments restore health but you lose shape while bedridden.</p>
+      <p class="muted"><b>⚠️ Overtraining:</b> every rep wears health down a little, and it only recovers while you <b>rest</b>. Training non-stop (especially with the Auto-Trainer) slowly drains health — pause to recover, or at health 10 you <b>collapse</b> (60s in hospital, −20% gains). Watch the ▲/▼ trend next to the Health bar.</p>
       <p class="cond">Health: <b id="hosphealth">100</b>/100 · side effects: <b id="hospside">0</b>/turn</p>
       <div id="hospitallist" class="grid"></div>
     </section>
@@ -883,6 +884,8 @@ let shownExercise = ""; // rebuild the exercise list when the active exercise ch
 let shownUnlocks = -1; // rebuild when an exercise unlocks (e.g. strength-gated Beat Superman/Goku)
 let shownMoney = -1; // refresh the visible shop when money changes (affordability)
 let shownJob: string | null | undefined = undefined; // refresh Work view on job change
+let prevHealth = 100; // for the live health trend (overtraining vs recovering)
+let healthRate = 0; // smoothed health change per second
 function render(now: number) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
@@ -937,6 +940,24 @@ function render(now: number) {
   $<HTMLElement>("healthfill").style.width = health + "%";
   $<HTMLElement>("healthfill").style.background = health < 25 ? "#c0392b" : "#e74c3c";
   $("healthval").textContent = String(health);
+  // explicit overtraining feedback: a live trend showing if health is draining or healing
+  const dh = (game.state.health - prevHealth) / dt;
+  if (Math.abs(dh) < 5) healthRate = healthRate * 0.92 + dh * 0.08; // smooth; skip collapse/heal jumps
+  prevHealth = game.state.health;
+  const trend = $("healthtrend");
+  if (game.isRecovering()) {
+    trend.textContent = "🏥 recovering";
+    trend.className = "trend up";
+  } else if (healthRate < -0.04) {
+    trend.textContent = "▼ overtraining";
+    trend.className = "trend down";
+  } else if (healthRate > 0.04 && health < 100) {
+    trend.textContent = "▲ recovering";
+    trend.className = "trend up";
+  } else {
+    trend.textContent = "";
+    trend.className = "trend";
+  }
 
   $("exname").textContent = ex.name;
   $("weightval").textContent = String(game.selectedWeight());
