@@ -55,9 +55,11 @@ app.innerHTML = `
       <section class="workout">
         <h2 id="exname">Crunch</h2>
         <div class="weight">
+          <button id="weightMin" class="wextreme">MIN</button>
           <button id="weightDown">−</button>
           <span>Weight: <b id="weightval">0</b> / <span id="weightmax">0</span> kg</span>
           <button id="weightUp">+</button>
+          <button id="weightMax" class="wextreme">MAX</button>
         </div>
         <div class="settrack">
           <span class="setlbl">Set · <b id="setreps">0</b>/<span id="setper">12</span> reps · <b id="setsdone">0</b> done · <b id="totalreps">0</b> total reps</span>
@@ -301,6 +303,8 @@ function holdToRepeat(el: HTMLElement, step: () => void) {
 }
 holdToRepeat($("weightDown"), () => game.changeWeight(-1));
 holdToRepeat($("weightUp"), () => game.changeWeight(1));
+$("weightMin").addEventListener("click", () => game.setWeightExtreme(false));
+$("weightMax").addEventListener("click", () => game.setWeightExtreme(true));
 $("autobuy").addEventListener("click", () => game.hireAuto() && playSound("buy"));
 $("autotoggle").addEventListener("click", () => game.toggleAuto());
 $("agentbuy").addEventListener("click", () => game.hireAgent() && (renderWork(), playSound("buy")));
@@ -770,8 +774,12 @@ function render(now: number) {
   $("exname").textContent = ex.name;
   $("weightval").textContent = String(game.selectedWeight());
   $("weightmax").textContent = String(game.maxLift());
-  $<HTMLButtonElement>("weightUp").disabled = game.selectedWeight() >= game.maxLift();
-  $<HTMLButtonElement>("weightDown").disabled = game.selectedWeight() <= ex.minWeight;
+  const atMax = game.selectedWeight() >= game.maxLift();
+  const atMin = game.selectedWeight() <= ex.minWeight;
+  $<HTMLButtonElement>("weightUp").disabled = atMax;
+  $<HTMLButtonElement>("weightMax").disabled = atMax;
+  $<HTMLButtonElement>("weightDown").disabled = atMin;
+  $<HTMLButtonElement>("weightMin").disabled = atMin;
 
   // Auto-Trainer control
   $("autolvl").textContent = String(game.state.autoLevel);

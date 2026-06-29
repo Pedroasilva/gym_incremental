@@ -164,6 +164,14 @@ body {
   cursor: pointer;
 }
 .weight button:active { transform: scale(0.92); }
+.weight button.wextreme {
+  width: auto;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.weight button:disabled { opacity: 0.4; cursor: not-allowed; }
 .weight b { color: var(--accent); }
 
 /* ---- Sets (séries) tracker ---- */

@@ -401,6 +401,15 @@ export class Game {
     this.state.weight[ex.id] = next;
     this.effort = 0; // weight changed → rep cost changed, so reset the partial effort
   }
+  // Jump straight to the lightest (min) or heaviest (max-lift) weight for this exercise.
+  setWeightExtreme(toMax: boolean) {
+    const ex = this.exercise();
+    const current = this.selectedWeight(ex);
+    const next = toMax ? this.maxLift(ex) : ex.minWeight;
+    if (next === current) return;
+    this.state.weight[ex.id] = next;
+    this.effort = 0;
+  }
 
   push(): boolean {
     const ex = this.exercise();
