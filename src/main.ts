@@ -884,15 +884,16 @@ function render(now: number) {
 
   // Sets (séries) tracker
   const setReps = game.setReps();
+  const perSet = game.repsPerSet();
   const restLeft = game.restRemaining();
   const resting = restLeft > 0;
-  $("setper").textContent = String(BALANCE.repsPerSet);
+  $("setper").textContent = String(perSet);
   $("setreps").textContent = String(setReps);
   $("setsdone").textContent = String(game.state.setsCompleted);
   $("totalreps").textContent = game.state.totalReps.toLocaleString("en-US");
   const dots = $("setdots");
-  if (dots.childElementCount !== BALANCE.repsPerSet) {
-    dots.innerHTML = Array.from({ length: BALANCE.repsPerSet }, () => `<span class="dot"></span>`).join("");
+  if (dots.childElementCount !== perSet) {
+    dots.innerHTML = Array.from({ length: perSet }, () => `<span class="dot"></span>`).join("");
   }
   dots.querySelectorAll<HTMLElement>(".dot").forEach((d, i) => d.classList.toggle("on", i < setReps));
   if (resting) {

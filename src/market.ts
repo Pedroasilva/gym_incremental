@@ -12,6 +12,7 @@ export interface Modifiers {
   moneyMult?: number; // money per rep
   sideEffect?: number; // raises health side effects (lowers conditioning)
   liftMult?: number; // raises the max-lift cap
+  repsPerSetAdd?: number; // extra reps per set before the forced rest (sum across items)
 }
 
 export interface MarketItem {
@@ -55,6 +56,7 @@ export const MARKET: MarketItem[] = [
   { id: "liver", name: "Liver Support", emoji: "🛡️", category: "compound", cost: 420, desc: "-18 side effects", mods: { sideEffect: -18 } },
   { id: "diuretic", name: "Diuretic", emoji: "🚰", category: "compound", cost: 480, desc: "+15 conditioning (dry look), -6 click", mods: { conditionMod: 15, clickAdd: -6 } },
   { id: "peptide", name: "Peptide Stack", emoji: "🧫", category: "compound", cost: 560, desc: "+15% XP, +10% muscle, +6 side effects", mods: { xpMult: 1.15, muscleMult: 1.1, sideEffect: 6 } },
+  { id: "amphetamine", name: "Amphetamine", emoji: "💥", category: "compound", cost: 5000, desc: "+30 click (faster reps), +6 reps per set, but −8 conditioning & +16 side effects", mods: { clickAdd: 30, repsPerSetAdd: 6, conditionMod: -8, sideEffect: 16 } },
 
   // ---- Anabolics (anabolisantes: huge gains, heavy side effects) ----
   { id: "test", name: "Testosterone", emoji: "💉", category: "anabolic", cost: 900, desc: "+50% muscle, +20% lift, +12 side effects", mods: { muscleMult: 1.5, xpMult: 1.2, liftMult: 1.2, sideEffect: 12 } },

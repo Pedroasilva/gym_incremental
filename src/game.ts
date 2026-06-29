@@ -205,6 +205,7 @@ export class Game {
       moneyMult: 1,
       sideEffect: 0,
       liftMult: 1,
+      repsPerSetAdd: 0,
     };
     for (const item of MARKET) {
       if (!this.owns(item.id)) continue;
@@ -217,8 +218,13 @@ export class Game {
       acc.moneyMult *= m.moneyMult ?? 1;
       acc.sideEffect += m.sideEffect ?? 0;
       acc.liftMult *= m.liftMult ?? 1;
+      acc.repsPerSetAdd += m.repsPerSetAdd ?? 0;
     }
     return acc;
+  }
+  // Reps that make up one set — base plus any gear (e.g. Amphetamine raises the cap).
+  repsPerSet(): number {
+    return BALANCE.repsPerSet + this.itemMods().repsPerSetAdd;
   }
 
   private buffMult(key: "xpMult" | "clickMult" | "muscleMult"): number {
@@ -456,7 +462,7 @@ export class Game {
     // what truly builds the body — it grants a strength bonus, bumps conditioning,
     // and forces a rest pause on that muscle before the next set can begin.
     this.state.setReps[ex.id] = this.setReps(ex) + 1;
-    if (this.state.setReps[ex.id] >= BALANCE.repsPerSet) {
+    if (this.state.setReps[ex.id] >= this.repsPerSet()) {
       this.state.setReps[ex.id] = 0;
       this.state.rest[ex.muscle] = BALANCE.restSeconds * this.upgradeRestMult();
       this.state.setsCompleted++;
