@@ -70,6 +70,7 @@ export interface Exercise {
   step: number; // − / + increment (kg)
   liftFactor: number; // scales the strength-derived max-lift cap for this lift
   requiresAchievement?: string; // also gated behind this achievement id (beyond level)
+  requiresStrength?: number; // also gated behind reaching this much accumulated strength
   gainMult?: number; // multiplies XP + physique per rep (1 = normal)
 }
 
@@ -87,6 +88,9 @@ export const EXERCISES: Exercise[] = [
   // Ultimate lift — unlocked only by the "Olympian Legend" achievement (Endless stage 10).
   // Full-body, huge cap, and a big gain multiplier so it out-earns every other exercise.
   { id: "benchworld", name: "Bench the World", muscle: "fullbody", unlockLevel: 0, minWeight: 100, step: 25, liftFactor: 4, requiresAchievement: "endless10", gainMult: 2.5 },
+  // Mythic lifts — gated by raw accumulated strength, each out-earning the last.
+  { id: "beatsuperman", name: "Beat Superman", muscle: "fullbody", unlockLevel: 0, minWeight: 150, step: 50, liftFactor: 6, requiresStrength: 250000, gainMult: 4 },
+  { id: "beatgoku", name: "Beat Goku", muscle: "fullbody", unlockLevel: 0, minWeight: 250, step: 100, liftFactor: 9, requiresStrength: 1000000, gainMult: 6 },
 ];
 
 export const MUSCLES: { id: Muscle; name: string }[] = [

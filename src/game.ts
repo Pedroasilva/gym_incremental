@@ -190,6 +190,7 @@ export class Game {
   unlocked(ex: Exercise): boolean {
     if (this.state.level < ex.unlockLevel) return false;
     if (ex.requiresAchievement && !this.state.achievements[ex.requiresAchievement]) return false;
+    if (ex.requiresStrength && this.state.strength < ex.requiresStrength) return false;
     return true;
   }
   owns(id: string): boolean {

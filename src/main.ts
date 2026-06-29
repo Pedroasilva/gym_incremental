@@ -266,9 +266,12 @@ $("buffs").addEventListener("pointerout", hideTip);
 
 const MUSCLE_NAME: Record<string, string> = Object.fromEntries(MUSCLES.map((m) => [m.id, m.name]));
 const ACH_NAME: Record<string, string> = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a.name]));
-// Why an exercise is still locked (achievement requirement takes priority over level).
+const compactNum = (n: number) =>
+  n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${+(n / 1e3).toFixed(0)}k` : String(n);
+// Why an exercise is still locked (achievement / strength take priority over level).
 function lockReason(ex: (typeof EXERCISES)[number]): string {
   if (ex.requiresAchievement) return `🏅 ${ACH_NAME[ex.requiresAchievement] ?? "achievement"}`;
+  if (ex.requiresStrength) return `${compactNum(ex.requiresStrength)} 💪`;
   return `Lv ${ex.unlockLevel}`;
 }
 // What each exercise develops, for the hover tooltip.
@@ -792,6 +795,7 @@ function toast(text: string) {
 let last = performance.now();
 let shownLevel = -1; // rebuild the exercise list whenever the level changes
 let shownExercise = ""; // rebuild the exercise list when the active exercise changes
+let shownUnlocks = -1; // rebuild when an exercise unlocks (e.g. strength-gated Beat Superman/Goku)
 let shownMoney = -1; // refresh the visible shop when money changes (affordability)
 let shownJob: string | null | undefined = undefined; // refresh Work view on job change
 function render(now: number) {
@@ -814,6 +818,11 @@ function render(now: number) {
   if (game.state.currentExercise !== shownExercise) {
     shownExercise = game.state.currentExercise;
     buildList(); // keep the exercise-list highlight in sync (e.g. auto-trainer switches)
+  }
+  const unlockCount = EXERCISES.filter((e) => game.unlocked(e)).length;
+  if (unlockCount !== shownUnlocks) {
+    shownUnlocks = unlockCount;
+    buildList(); // an exercise just unlocked (strength/achievement gate met)
   }
   $("money").textContent = Math.floor(game.state.money).toLocaleString("en-US");
   $("condhdr").textContent = String(game.conditioning());
