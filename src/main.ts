@@ -9,6 +9,7 @@ import { Competition, TOURNAMENTS, endlessField, type RoundResult, type Tourname
 import { ACHIEVEMENTS } from "./achievements";
 import { PRESTIGE_UPGRADES } from "./prestige";
 import { playSound, isMuted, toggleMute } from "./sound";
+import { initWakeLock, wakeLockSupported, isWakeLockOn, setWakeLock } from "./wakelock";
 
 const game = new Game();
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -171,6 +172,7 @@ app.innerHTML = `
   <footer class="footer">
     <button id="reset" class="reset">Reset progress</button>
     <button id="mute" class="reset">🔊 Sound</button>
+    <button id="wakelock" class="reset hidden">📱 Keep awake</button>
     <span class="ver">v0.5 — From Scrawny to Swole</span>
   </footer>
   </div>
@@ -330,6 +332,19 @@ muteBtn.addEventListener("click", () => {
   const m = toggleMute();
   muteBtn.textContent = m ? "🔇 Muted" : "🔊 Sound";
 });
+
+// Keep-awake toggle — only shown when the browser supports the Wake Lock API
+const wakeBtn = $<HTMLButtonElement>("wakelock");
+if (wakeLockSupported()) {
+  initWakeLock();
+  wakeBtn.classList.remove("hidden");
+  const sync = () => (wakeBtn.textContent = isWakeLockOn() ? "📱 Keep awake" : "💤 Auto-lock");
+  sync();
+  wakeBtn.addEventListener("click", () => {
+    setWakeLock(!isWakeLockOn());
+    sync();
+  });
+}
 
 // ================= Work =================
 function renderWork() {
