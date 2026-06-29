@@ -1,6 +1,6 @@
 import { BALANCE, EXERCISES, JUDGED_MUSCLES, type Muscle, type Exercise } from "./balance";
 import { FOODS, type ActiveBuff } from "./nutrition";
-import { MARKET, type Modifiers } from "./market";
+import { MARKET, type Modifiers, type MarketItem } from "./market";
 import { TREATMENTS } from "./hospital";
 import { JOBS, type Job } from "./jobs";
 import { ACHIEVEMENTS, type Achievement } from "./achievements";
@@ -29,7 +29,8 @@ export interface State {
   setCondition: number; // conditioning earned from completing sets (the routine)
   fatigue: Record<Muscle, number>;
   physique: Record<Muscle, number>;
-  owned: Record<string, boolean>; // market items owned
+  owned: Record<string, boolean>; // permanent market items owned
+  activeItems: Record<string, number>; // timed items (anabolics) → remaining seconds active
   buffs: ActiveBuff[]; // active food buffs
   activeJob: string | null; // job currently being worked
   jobRemaining: number; // seconds left on the active job
@@ -84,6 +85,7 @@ function initialState(): State {
     fatigue: { core: 0, legs: 0, chest: 0, arms: 0, back: 0, fullbody: 0 },
     physique: { core: 0, legs: 0, chest: 0, arms: 0, back: 0, fullbody: 0 },
     owned: {},
+    activeItems: {},
     buffs: [],
     activeJob: null,
     jobRemaining: 0,
@@ -200,8 +202,20 @@ export class Game {
   owns(id: string): boolean {
     return !!this.state.owned[id];
   }
+  // Timed items (anabolics): currently active? and how much time is left.
+  itemActive(id: string): boolean {
+    return (this.state.activeItems[id] ?? 0) > 0;
+  }
+  itemRemaining(id: string): number {
+    return this.state.activeItems[id] ?? 0;
+  }
+  // Whether an item's effects currently apply: permanent items if owned, timed items
+  // (anabolics) only while the cycle is active.
+  private effectActive(item: MarketItem): boolean {
+    return item.duration ? this.itemActive(item.id) : this.owns(item.id);
+  }
 
-  // ---- Aggregated modifiers from owned market items ----
+  // ---- Aggregated modifiers from owned/active market items ----
   private itemMods(): Required<Modifiers> {
     const acc: Required<Modifiers> = {
       clickAdd: 0,
@@ -215,7 +229,7 @@ export class Game {
       repsPerSetAdd: 0,
     };
     for (const item of MARKET) {
-      if (!this.owns(item.id)) continue;
+      if (!this.effectActive(item)) continue;
       const m = item.mods;
       acc.clickAdd += m.clickAdd ?? 0;
       acc.xpMult *= m.xpMult ?? 1;
@@ -532,7 +546,15 @@ export class Game {
 
   buy(itemId: string): boolean {
     const item = MARKET.find((i) => i.id === itemId);
-    if (!item || this.owns(itemId) || this.state.money < item.cost) return false;
+    if (!item || this.state.money < item.cost) return false;
+    if (item.duration) {
+      // timed cycle (anabolic): can't re-apply while still active
+      if (this.itemActive(itemId)) return false;
+      this.state.money -= item.cost;
+      this.state.activeItems[itemId] = item.duration;
+      return true;
+    }
+    if (this.owns(itemId)) return false; // permanent items: bought once
     this.state.money -= item.cost;
     this.state.owned[itemId] = true;
     return true;
@@ -834,6 +856,12 @@ export class Game {
     if (this.state.buffs.length) {
       for (const b of this.state.buffs) b.remaining -= dt;
       this.state.buffs = this.state.buffs.filter((b) => b.remaining > 0);
+    }
+    // tick down active anabolic cycles — when one ends, its effects + side effects stop
+    for (const id of Object.keys(this.state.activeItems)) {
+      const left = this.state.activeItems[id] - dt;
+      if (left <= 0) delete this.state.activeItems[id];
+      else this.state.activeItems[id] = left;
     }
     // work the active job; food-requiring jobs burn hunger; pay out when finished
     if (this.state.activeJob) {

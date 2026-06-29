@@ -16,7 +16,7 @@ export interface Achievement {
 }
 
 const ownsCategory = (g: Game, cat: string) =>
-  MARKET.some((i) => i.category === cat && g.owns(i.id));
+  MARKET.some((i) => i.category === cat && (g.owns(i.id) || g.itemActive(i.id)));
 
 export const ACHIEVEMENTS: Achievement[] = [
   { id: "firstrep", name: "First Rep", emoji: "🔰", desc: "Complete your first repetition", done: (g) => g.state.totalReps >= 1 },

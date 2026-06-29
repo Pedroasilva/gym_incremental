@@ -485,23 +485,34 @@ function renderMarket() {
   $("marketlist").innerHTML = cats
     .map((cat) => {
       const inCat = MARKET.filter((i) => i.category === cat);
-      // available items: full cards with description + price
+      // available items: full cards with description + price. Timed items (anabolics)
+      // always live here (active countdown or re-buyable); permanent items leave once owned.
       const available = inCat
-        .filter((i) => !game.owns(i.id))
+        .filter((i) => (i.duration ? true : !game.owns(i.id)))
         .map((i) => {
+          const active = !!i.duration && game.itemActive(i.id);
+          if (active) {
+            return `<button class="card mk bad active" disabled>
+              <span class="cemoji">${i.emoji}</span>
+              <span class="cname2">${i.name}</span>
+              <span class="ctags">${i.desc}</span>
+              <span class="cost">⏳ ${Math.ceil(game.itemRemaining(i.id))}s active</span>
+            </button>`;
+          }
           const afford = game.state.money >= i.cost;
+          const dur = i.duration ? ` · lasts ${i.duration}s (cycle)` : "";
           return `<button class="card mk${i.category === "anabolic" ? " bad" : ""}"
             data-buy="${i.id}" ${!afford ? "disabled" : ""}>
             <span class="cemoji">${i.emoji}</span>
             <span class="cname2">${i.name}</span>
-            <span class="ctags">${i.desc}</span>
+            <span class="ctags">${i.desc}${dur}</span>
             <span class="cost">$${i.cost}</span>
           </button>`;
         })
         .join("");
-      // owned items: minimized to a compact chip with just the icon + title
+      // permanently-owned items: minimized to a compact chip with just the icon + title
       const owned = inCat
-        .filter((i) => game.owns(i.id))
+        .filter((i) => !i.duration && game.owns(i.id))
         .map(
           (i) => `<span class="card mk owned min" data-tip="${i.desc}">
             <span class="cemoji">${i.emoji}</span>
@@ -886,6 +897,7 @@ let shownMoney = -1; // refresh the visible shop when money changes (affordabili
 let shownJob: string | null | undefined = undefined; // refresh Work view on job change
 let prevHealth = 100; // for the live health trend (overtraining vs recovering)
 let healthRate = 0; // smoothed health change per second
+let shownMarketSec = -1; // throttles the market's active-anabolic countdown refresh
 function render(now: number) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
@@ -1113,6 +1125,12 @@ function render(now: number) {
     if (!$("view-food").classList.contains("hidden")) renderFood();
     if (!$("view-work").classList.contains("hidden")) renderWork();
     if (!$("view-arnold").classList.contains("hidden") && !comp) renderArnold();
+  }
+  // tick the market's active-anabolic countdowns once per second while it's open
+  const sec = Math.floor(now / 1000);
+  if (sec !== shownMarketSec) {
+    shownMarketSec = sec;
+    if (!$("view-market").classList.contains("hidden") && Object.keys(game.state.activeItems).length) renderMarket();
   }
 
   const fresh = game.checkAchievements();

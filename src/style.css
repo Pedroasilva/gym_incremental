@@ -409,6 +409,9 @@ body {
 }
 .card:hover:not(:disabled) { border-color: var(--accent); }
 .card:disabled { opacity: 0.45; cursor: not-allowed; }
+/* an active timed cycle (anabolic) — running, not just unaffordable */
+.card.mk.active:disabled { opacity: 1; cursor: default; border: 2px solid #2ecc71; }
+.card.mk.active .cost { color: #2ecc71; }
 .card.bad { border-left: 4px solid #e74c3c; }
 .card.owned { border-color: #27ae60; opacity: 0.7; }
 /* owned items collapse to compact chips packed in a wrapping row */

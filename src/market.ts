@@ -23,6 +23,9 @@ export interface MarketItem {
   cost: number;
   desc: string;
   mods: Modifiers;
+  duration?: number; // if set, the item is a TIMED cycle (anabolics): its effects (and
+  // side effects) only apply while active; it can't be re-bought until it wears off,
+  // after which you're "natural" again. Items without a duration are permanent.
 }
 
 export const MARKET: MarketItem[] = [
@@ -58,15 +61,16 @@ export const MARKET: MarketItem[] = [
   { id: "peptide", name: "Peptide Stack", emoji: "🧫", category: "compound", cost: 560, desc: "+15% XP, +10% muscle, +6 side effects", mods: { xpMult: 1.15, muscleMult: 1.1, sideEffect: 6 } },
   { id: "amphetamine", name: "Amphetamine", emoji: "💥", category: "compound", cost: 5000, desc: "+30 click (faster reps), +6 reps per set, but −8 conditioning & +16 side effects", mods: { clickAdd: 30, repsPerSetAdd: 6, conditionMod: -8, sideEffect: 16 } },
 
-  // ---- Anabolics (anabolisantes: huge gains, heavy side effects) ----
-  { id: "test", name: "Testosterone", emoji: "💉", category: "anabolic", cost: 900, desc: "+50% muscle, +20% lift, +12 side effects", mods: { muscleMult: 1.5, xpMult: 1.2, liftMult: 1.2, sideEffect: 12 } },
-  { id: "anavar", name: "Anavar", emoji: "🟡", category: "anabolic", cost: 1100, desc: "+40% muscle, +25% lift, +8 side effects (mild)", mods: { muscleMult: 1.4, liftMult: 1.25, sideEffect: 8 } },
-  { id: "dbol", name: "Dianabol", emoji: "🔴", category: "anabolic", cost: 1400, desc: "+80% muscle, +35% lift, +22 side effects", mods: { muscleMult: 1.8, clickAdd: 10, liftMult: 1.35, sideEffect: 22 } },
-  { id: "winstrol", name: "Winstrol", emoji: "⚪", category: "anabolic", cost: 1800, desc: "+30% muscle, +18 conditioning, +14 side effects", mods: { muscleMult: 1.3, conditionMod: 18, liftMult: 1.2, sideEffect: 14 } },
-  { id: "deca", name: "Deca Durabolin", emoji: "🔵", category: "anabolic", cost: 2200, desc: "+90% muscle, +30% lift, +18 side effects", mods: { muscleMult: 1.9, xpMult: 1.2, liftMult: 1.3, sideEffect: 18 } },
-  { id: "synthol", name: "Synthol", emoji: "🎈", category: "anabolic", cost: 2400, desc: "+100% muscle, but -20 conditioning, +10 side effects", mods: { muscleMult: 2.0, conditionMod: -20, sideEffect: 10 } },
-  { id: "hgh", name: "HGH", emoji: "🧬", category: "anabolic", cost: 2600, desc: "+60% muscle, +40% XP, +20% lift, +10 side effects", mods: { muscleMult: 1.6, xpMult: 1.4, liftMult: 1.2, sideEffect: 10 } },
-  { id: "tren", name: "Trenbolone", emoji: "☠️", category: "anabolic", cost: 3200, desc: "+120% muscle, +50% lift, +32 side effects", mods: { muscleMult: 2.2, xpMult: 1.3, liftMult: 1.5, sideEffect: 32 } },
+  // ---- Anabolics (anabolisantes: TIMED cycles — huge gains + side effects while
+  // active; when the cycle ends you're natural again and stop losing health) ----
+  { id: "test", name: "Testosterone", emoji: "💉", category: "anabolic", cost: 900, duration: 180, desc: "+50% muscle, +20% lift, +12 side effects", mods: { muscleMult: 1.5, xpMult: 1.2, liftMult: 1.2, sideEffect: 12 } },
+  { id: "anavar", name: "Anavar", emoji: "🟡", category: "anabolic", cost: 1100, duration: 160, desc: "+40% muscle, +25% lift, +8 side effects (mild)", mods: { muscleMult: 1.4, liftMult: 1.25, sideEffect: 8 } },
+  { id: "dbol", name: "Dianabol", emoji: "🔴", category: "anabolic", cost: 1400, duration: 180, desc: "+80% muscle, +35% lift, +22 side effects", mods: { muscleMult: 1.8, clickAdd: 10, liftMult: 1.35, sideEffect: 22 } },
+  { id: "winstrol", name: "Winstrol", emoji: "⚪", category: "anabolic", cost: 1800, duration: 160, desc: "+30% muscle, +18 conditioning, +14 side effects", mods: { muscleMult: 1.3, conditionMod: 18, liftMult: 1.2, sideEffect: 14 } },
+  { id: "deca", name: "Deca Durabolin", emoji: "🔵", category: "anabolic", cost: 2200, duration: 220, desc: "+90% muscle, +30% lift, +18 side effects", mods: { muscleMult: 1.9, xpMult: 1.2, liftMult: 1.3, sideEffect: 18 } },
+  { id: "synthol", name: "Synthol", emoji: "🎈", category: "anabolic", cost: 2400, duration: 120, desc: "+100% muscle, but -20 conditioning, +10 side effects", mods: { muscleMult: 2.0, conditionMod: -20, sideEffect: 10 } },
+  { id: "hgh", name: "HGH", emoji: "🧬", category: "anabolic", cost: 2600, duration: 240, desc: "+60% muscle, +40% XP, +20% lift, +10 side effects", mods: { muscleMult: 1.6, xpMult: 1.4, liftMult: 1.2, sideEffect: 10 } },
+  { id: "tren", name: "Trenbolone", emoji: "☠️", category: "anabolic", cost: 3200, duration: 200, desc: "+120% muscle, +50% lift, +32 side effects", mods: { muscleMult: 2.2, xpMult: 1.3, liftMult: 1.5, sideEffect: 32 } },
 ];
 
 export const CATEGORY_LABEL: Record<Category, string> = {
