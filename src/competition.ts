@@ -1,4 +1,4 @@
-import { MUSCLES, type Muscle } from "./balance";
+import { MUSCLES, JUDGED_MUSCLES, type Muscle } from "./balance";
 
 export interface Competitor {
   name: string;
@@ -16,17 +16,22 @@ interface RivalSpec {
   conditioning: number;
 }
 
+// Smoothly escalating field, retuned via Monte-Carlo so each show is a steady step
+// up (no flat top): the last shows introduce two new legends above the old cap so
+// the Olympia Qualifier and Arnold are genuinely harder, with Zeus the final boss.
 const RIVALS: RivalSpec[] = [
   { name: "Rookie Rick", tier: 40, imbalance: 0.5, conditioning: 55 },
-  { name: "Gym Bro Gary", tier: 90, imbalance: 0.45, conditioning: 60 },
-  { name: "Tank Tony", tier: 180, imbalance: 0.5, conditioning: 62 },
-  { name: "Chad Maximus", tier: 320, imbalance: 0.3, conditioning: 72 },
-  { name: "Viktor Iron", tier: 520, imbalance: 0.25, conditioning: 80 },
-  { name: "Diego Granite", tier: 760, imbalance: 0.2, conditioning: 86 },
-  { name: "Magnus Titan", tier: 1050, imbalance: 0.15, conditioning: 92 },
-  { name: "Goliath Stone", tier: 1400, imbalance: 0.13, conditioning: 93 },
-  { name: "Atlas Prime", tier: 1850, imbalance: 0.12, conditioning: 95 },
-  { name: "Zeus Apex", tier: 2400, imbalance: 0.1, conditioning: 97 },
+  { name: "Gym Bro Gary", tier: 85, imbalance: 0.45, conditioning: 60 },
+  { name: "Tank Tony", tier: 165, imbalance: 0.5, conditioning: 64 },
+  { name: "Chad Maximus", tier: 300, imbalance: 0.3, conditioning: 72 },
+  { name: "Viktor Iron", tier: 480, imbalance: 0.25, conditioning: 80 },
+  { name: "Diego Granite", tier: 720, imbalance: 0.2, conditioning: 86 },
+  { name: "Magnus Titan", tier: 1020, imbalance: 0.15, conditioning: 90 },
+  { name: "Goliath Stone", tier: 1380, imbalance: 0.13, conditioning: 93 },
+  { name: "Atlas Prime", tier: 1820, imbalance: 0.12, conditioning: 95 },
+  { name: "Kratos Vael", tier: 2360, imbalance: 0.11, conditioning: 96 },
+  { name: "Helios Rex", tier: 3050, imbalance: 0.1, conditioning: 98 },
+  { name: "Zeus Apex", tier: 3900, imbalance: 0.08, conditioning: 99 },
 ];
 
 export interface Tournament {
@@ -50,11 +55,11 @@ export const TOURNAMENTS: Tournament[] = [
   { id: "city", name: "City Championship", emoji: "🥈", desc: "3 rivals", prize: 550, entryFee: 50, rivalIdx: [2, 3, 4] },
   { id: "state", name: "State Cup", emoji: "🏵️", desc: "4 rivals", prize: 950, entryFee: 90, rivalIdx: [2, 3, 4, 5] },
   { id: "regional", name: "Regional Open", emoji: "🥇", desc: "4 tough rivals", prize: 1600, entryFee: 150, rivalIdx: [3, 4, 5, 6] },
-  { id: "qualifier", name: "Pro Qualifier", emoji: "🎫", desc: "5 tough rivals", prize: 2600, entryFee: 250, rivalIdx: [3, 4, 5, 6, 7] },
+  { id: "qualifier", name: "Pro Qualifier", emoji: "🎫", desc: "4 tough rivals", prize: 2600, entryFee: 250, rivalIdx: [4, 5, 6, 7] },
   { id: "national", name: "National Pro", emoji: "🏅", desc: "5 elite rivals", prize: 4200, entryFee: 400, rivalIdx: [4, 5, 6, 7, 8] },
   { id: "international", name: "International Invitational", emoji: "🌍", desc: "5 elite rivals", prize: 6500, entryFee: 600, rivalIdx: [5, 6, 7, 8, 9] },
-  { id: "olympiaq", name: "Olympia Qualifier", emoji: "🎟️", desc: "6 elite rivals", prize: 8200, entryFee: 800, rivalIdx: [4, 5, 6, 7, 8, 9] },
-  { id: "arnold", name: "Arnold Classic", emoji: "🏆", desc: "all 7 legends", prize: 11000, entryFee: 1000, rivalIdx: [3, 4, 5, 6, 7, 8, 9], isArnold: true },
+  { id: "olympiaq", name: "Olympia Qualifier", emoji: "🎟️", desc: "6 elite rivals", prize: 8200, entryFee: 800, rivalIdx: [5, 6, 7, 8, 9, 10] },
+  { id: "arnold", name: "Arnold Classic", emoji: "🏆", desc: "all 7 legends", prize: 11000, entryFee: 1000, rivalIdx: [5, 6, 7, 8, 9, 10, 11], isArnold: true },
 ];
 
 function rng(seed: number) {
@@ -80,7 +85,7 @@ function buildRival(spec: RivalSpec, rand: () => number): Competitor {
 }
 
 export function judgeScore(c: Competitor, rand: () => number): number {
-  const vals = MUSCLES.map((m) => c.physique[m.id]);
+  const vals = JUDGED_MUSCLES.map((m) => c.physique[m.id]);
   const mass = vals.reduce((a, b) => a + b, 0) / vals.length;
   const mean = mass || 1;
   const std = Math.sqrt(vals.reduce((a, v) => a + (v - mean) ** 2, 0) / vals.length);

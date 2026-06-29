@@ -83,3 +83,9 @@ export const MUSCLES: { id: Muscle; name: string }[] = [
   { id: "back", name: "Back" },
   { id: "fullbody", name: "Full Body" },
 ];
+
+// Muscles the judges actually score (mass + symmetry). "fullbody" is NOT a real
+// display group — it only exists so Deadlift can spread development to the others —
+// so judging/conditioning ignore it, otherwise it would be a permanent empty slot
+// that tanks symmetry until Deadlift unlocks (Lv 15).
+export const JUDGED_MUSCLES = MUSCLES.filter((m) => m.id !== "fullbody");

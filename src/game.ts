@@ -1,4 +1,4 @@
-import { BALANCE, EXERCISES, MUSCLES, type Muscle, type Exercise } from "./balance";
+import { BALANCE, EXERCISES, JUDGED_MUSCLES, type Muscle, type Exercise } from "./balance";
 import { FOODS, type ActiveBuff } from "./nutrition";
 import { MARKET, type Modifiers } from "./market";
 import { TREATMENTS } from "./hospital";
@@ -347,7 +347,7 @@ export class Game {
 
   // Stage conditioning shown to the judges (symmetry + diet + gear - side effects).
   conditioning(): number {
-    const vals = MUSCLES.map((m) => this.state.physique[m.id]);
+    const vals = JUDGED_MUSCLES.map((m) => this.state.physique[m.id]);
     const mean = vals.reduce((a, b) => a + b, 0) / vals.length || 1;
     const std = Math.sqrt(vals.reduce((a, v) => a + (v - mean) ** 2, 0) / vals.length);
     const symmetry = mean / (mean + std); // 0..1
@@ -406,7 +406,9 @@ export class Game {
     const muscleMult = mods.muscleMult * this.buffMult("muscleMult") * this.prestigeMult();
     const gain = (weight * 0.1 + 0.2) * muscleMult;
     if (ex.muscle === "fullbody") {
-      for (const m of Object.keys(this.state.physique) as Muscle[]) this.state.physique[m] += gain * 0.3;
+      // Deadlift is a full-body lift: spread development across the 5 judged groups
+      // (it doesn't write to the unjudged "fullbody" slot). Total ≈ 1.8× a normal rep.
+      for (const m of JUDGED_MUSCLES) this.state.physique[m.id] += gain * 0.36;
     } else {
       this.state.physique[ex.muscle] += gain;
     }

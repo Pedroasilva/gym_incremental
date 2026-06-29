@@ -1,6 +1,6 @@
 import "./style.css";
 import { Game } from "./game";
-import { BALANCE, EXERCISES, MUSCLES } from "./balance";
+import { BALANCE, EXERCISES, JUDGED_MUSCLES } from "./balance";
 import { FOODS } from "./nutrition";
 import { MARKET, CATEGORY_LABEL, type Category } from "./market";
 import { TREATMENTS } from "./hospital";
@@ -485,8 +485,8 @@ function leave() {
 // run every frame, so the Competitions view reflects training without a tab switch.
 function renderArnoldStats() {
   const phys = $("physique");
-  const maxVal = Math.max(1, ...MUSCLES.map((m) => game.state.physique[m.id]));
-  phys.innerHTML = MUSCLES.map((m) => {
+  const maxVal = Math.max(1, ...JUDGED_MUSCLES.map((m) => game.state.physique[m.id]));
+  phys.innerHTML = JUDGED_MUSCLES.map((m) => {
     const v = game.state.physique[m.id];
     return `<div class="prow"><span class="plbl">${m.name}</span>
       <div class="pbar"><span style="width:${(v / maxVal) * 100}%"></span></div>
