@@ -249,6 +249,20 @@ function showTip(target: HTMLElement, text: string) {
 function hideTip() {
   tipEl.classList.add("hidden");
 }
+// Buff tooltip text: the food's name + the multipliers it's currently providing.
+function buffTip(b: { name: string; xpMult: number; clickMult: number; muscleMult: number }): string {
+  const parts: string[] = [];
+  if (b.xpMult !== 1) parts.push(`×${b.xpMult} XP`);
+  if (b.clickMult !== 1) parts.push(`×${b.clickMult} energy`);
+  if (b.muscleMult !== 1) parts.push(`×${b.muscleMult} muscle`);
+  return `${b.name}${parts.length ? " · " + parts.join(" · ") : ""}`;
+}
+// Delegated hover tooltip for the active-buff chips (they're rebuilt every frame).
+$("buffs").addEventListener("pointerover", (e) => {
+  const chip = (e.target as HTMLElement).closest<HTMLElement>(".buff[data-tip]");
+  if (chip) showTip(chip, chip.dataset.tip!);
+});
+$("buffs").addEventListener("pointerout", hideTip);
 
 const MUSCLE_NAME: Record<string, string> = Object.fromEntries(MUSCLES.map((m) => [m.id, m.name]));
 const ACH_NAME: Record<string, string> = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a.name]));
@@ -961,7 +975,7 @@ function render(now: number) {
   $("fatpen").textContent = fatPen > 0 ? ` · −${fatPen}% effort` : "";
 
   $("buffs").innerHTML = game.state.buffs
-    .map((b) => `<span class="buff">${b.emoji} ${Math.ceil(b.remaining)}s</span>`)
+    .map((b) => `<span class="buff" data-tip="${buffTip(b)}">${b.emoji} ${Math.ceil(b.remaining)}s</span>`)
     .join("");
 
   const av = avatar(game.state.strength);
