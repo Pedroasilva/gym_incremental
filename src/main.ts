@@ -150,6 +150,7 @@ app.innerHTML = `
       <p class="muted">Cut down and restart your prep. You lose all current progress (strength, level, money, gear, physique) but earn permanent <b>Protein</b> that boosts every future gain. Arnold Champion status is kept.</p>
       <p class="cond">Division: <b id="prestdiv">🩳 Men's Physique</b> <span id="prestnext" class="muted"></span></p>
       <p class="cond">Protein: <b id="proteinval">0</b> 🥤 · permanent bonus: <b id="prestmult">+0%</b> to all gains</p>
+      <p class="cond muted">Unspent Protein isn't wasted: each gives <b id="proteinbankrate">+2%</b> to all gains (currently <b id="proteinbank">+0%</b>).</p>
       <p class="cond">Reset now to earn: <b id="proteingain">0</b> 🥤</p>
       <div class="arow"><button id="prestige-btn" class="primary">Start New Season</button></div>
       <p id="prestige-msg" class="arnold-msg"></p>
@@ -270,10 +271,12 @@ const MUSCLE_NAME: Record<string, string> = Object.fromEntries(MUSCLES.map((m) =
 const ACH_NAME: Record<string, string> = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a.name]));
 const compactNum = (n: number) =>
   n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${+(n / 1e3).toFixed(0)}k` : String(n);
-// Why an exercise is still locked (achievement / strength take priority over level).
+// The first still-unmet requirement (an exercise can have several gates at once).
 function lockReason(ex: (typeof EXERCISES)[number]): string {
-  if (ex.requiresAchievement) return `🏅 ${ACH_NAME[ex.requiresAchievement] ?? "achievement"}`;
-  if (ex.requiresStrength) return `${compactNum(ex.requiresStrength)} 💪`;
+  if (game.state.level < ex.unlockLevel) return `Lv ${ex.unlockLevel}`;
+  if (ex.requiresAchievement && !game.state.achievements[ex.requiresAchievement])
+    return `🏅 ${ACH_NAME[ex.requiresAchievement] ?? "achievement"}`;
+  if (ex.requiresStrength && game.state.strength < ex.requiresStrength) return `${compactNum(ex.requiresStrength)} 💪`;
   return `Lv ${ex.unlockLevel}`;
 }
 // What each exercise develops, for the hover tooltip.
@@ -800,6 +803,8 @@ function renderUpgrades(force = false) {
 function renderPrestige() {
   $("proteinval").textContent = String(game.state.protein);
   $("prestmult").textContent = `+${Math.round((game.prestigeMult() - 1) * 100)}%`;
+  $("proteinbankrate").textContent = `+${Math.round(BALANCE.proteinBonusRate * 100)}%`;
+  $("proteinbank").textContent = `+${Math.round(game.proteinBankBonus() * 100)}%`;
   $("proteingain").textContent = String(game.proteinGain());
   const div = game.division();
   $("prestdiv").textContent = `${div.emoji} ${div.name}`;

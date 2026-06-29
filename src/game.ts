@@ -277,9 +277,14 @@ export class Game {
     this.state.proteinUpgrades[id] = this.upgradeLevel(id) + 1;
     return true;
   }
-  // Permanent global multiplier from the Protein Synthesis upgrade: +10% per level.
+  // Passive bonus from UNSPENT Protein — leftover banked Protein is never wasted.
+  proteinBankBonus(): number {
+    return this.state.protein * BALANCE.proteinBonusRate;
+  }
+  // Permanent global multiplier: Protein Synthesis upgrade (+10%/lvl) plus the
+  // banked-Protein bonus (+2% per unspent Protein).
   prestigeMult(): number {
-    return 1 + this.upgradeLevel("synthesis") * 0.1;
+    return 1 + this.upgradeLevel("synthesis") * 0.1 + this.proteinBankBonus();
   }
   // Negative-effect mitigations and bonuses from the other upgrades:
   private upgradeFatigueMult(): number {

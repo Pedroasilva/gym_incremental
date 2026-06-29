@@ -37,6 +37,7 @@ export const BALANCE = {
   agentIntervalMin: 30, // floor on the auto-job interval
   agentFoodCost: 6, // hunger burned per auto-job when the chosen job needs food
   offlineCapSeconds: 8 * 3600, // max idle time simulated on return (8h) — "welcome back"
+  proteinBonusRate: 0.02, // each UNSPENT Protein gives this much extra to all gains (+2%)
   chefCost: 450, // one-time cost to hire the Personal Chef (auto-feeds you)
   chefHungerThreshold: 10, // chef auto-buys the marked food when hunger drops below this
   // Endless Olympia (post-Arnold infinite endgame): each stage is a tougher field
@@ -88,7 +89,7 @@ export const EXERCISES: Exercise[] = [
   { id: "deadlift", name: "Deadlift", muscle: "fullbody", unlockLevel: 15, minWeight: 40, step: 10, liftFactor: 2.2 },
   // Ultimate lift — unlocked only by the "Olympian Legend" achievement (Endless stage 10).
   // Full-body, huge cap, and a big gain multiplier so it out-earns every other exercise.
-  { id: "benchworld", name: "Bench the World", muscle: "fullbody", unlockLevel: 0, minWeight: 100, step: 25, liftFactor: 4, requiresAchievement: "endless10", gainMult: 2.5 },
+  { id: "benchworld", name: "Bench the World", muscle: "fullbody", unlockLevel: 15, minWeight: 100, step: 25, liftFactor: 4, requiresAchievement: "endless10", requiresStrength: 100000, gainMult: 2.5 },
   // Mythic lifts — gated by raw accumulated strength, each out-earning the last.
   // Fixed-weight grind lifts — no selector, a brutally heavy locked weight so each set
   // is a slow effort. Goku's weight is far higher (harder) than Superman's.
