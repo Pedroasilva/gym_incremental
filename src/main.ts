@@ -846,3 +846,18 @@ buildList();
 requestAnimationFrame(render);
 setInterval(() => game.save(), 3000);
 window.addEventListener("beforeunload", () => game.save());
+
+// "Welcome back" — summarize idle progress earned while the player was away
+if (game.offlineSummary) {
+  const o = game.offlineSummary;
+  game.offlineSummary = null;
+  const h = Math.floor(o.seconds / 3600);
+  const m = Math.floor((o.seconds % 3600) / 60);
+  const away = h > 0 ? `${h}h ${m}m` : `${m}m`;
+  const parts: string[] = [];
+  if (o.strength > 0) parts.push(`+${Math.floor(o.strength).toLocaleString("en-US")} 💪`);
+  if (o.levels > 0) parts.push(`+${o.levels} ⭐`);
+  if (o.money > 0) parts.push(`+$${Math.floor(o.money).toLocaleString("en-US")}`);
+  if (o.reps > 0) parts.push(`+${o.reps.toLocaleString("en-US")} reps`);
+  if (parts.length) toast(`👋 Welcome back! Away ${away} → ${parts.join(" · ")}`);
+}

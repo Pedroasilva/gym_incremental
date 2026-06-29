@@ -36,6 +36,7 @@ export const BALANCE = {
   agentIntervalStep: 15, // each level shortens the interval by this many seconds
   agentIntervalMin: 30, // floor on the auto-job interval
   agentFoodCost: 6, // hunger burned per auto-job when the chosen job needs food
+  offlineCapSeconds: 8 * 3600, // max idle time simulated on return (8h) — "welcome back"
   chefCost: 450, // one-time cost to hire the Personal Chef (auto-feeds you)
   chefHungerThreshold: 10, // chef auto-buys the marked food when hunger drops below this
   rematchFullWins: 5, // this many wins per show pay the FULL prize before any decay

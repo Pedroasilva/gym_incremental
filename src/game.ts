@@ -44,6 +44,7 @@ export interface State {
   seasons: number; // New Seasons completed → Olympia division climbed (persists)
   achievements: Record<string, boolean>; // unlocked achievements (persist across prestige)
   arnoldWon: boolean;
+  lastSeen: number; // epoch ms of the last save — used to compute offline progress
 }
 
 // Olympia divisions, lightest to the pinnacle. Each New Season promotes the player
@@ -92,6 +93,7 @@ function initialState(): State {
     seasons: 0,
     achievements: {},
     arnoldWon: false,
+    lastSeen: Date.now(),
   };
 }
 
@@ -105,9 +107,41 @@ export class Game {
   justRecovered = false; // set when a recovery lockout finishes (UI toast)
   // meals the Personal Chef auto-served this tick (drained by the UI for a toast)
   chefEvents: { name: string; emoji: string; cost: number }[] = [];
+  // idle gains accumulated while the player was away (drained by the UI for a summary)
+  offlineSummary: { seconds: number; strength: number; money: number; levels: number; reps: number } | null = null;
 
   constructor() {
     this.state = this.load();
+    this.applyOffline();
+  }
+
+  // Simulate the time the player was away by replaying tick() in 1-second steps, so
+  // the Auto-Trainer / Business Agent / Personal Chef keep working idle. Capped so a
+  // long absence can't fast-forward forever; short gaps are ignored.
+  private applyOffline() {
+    const now = Date.now();
+    const elapsed = Math.min(Math.floor((now - this.state.lastSeen) / 1000), BALANCE.offlineCapSeconds);
+    this.state.lastSeen = now;
+    if (elapsed < 60) return; // ignore brief gaps (page reloads, quick tab switches)
+    const before = {
+      strength: this.state.strength,
+      money: this.state.money,
+      level: this.state.level,
+      reps: this.state.totalReps,
+    };
+    for (let i = 0; i < elapsed; i++) this.tick(1);
+    // discard the per-tick toast queues built up during the fast-forward
+    this.jobEvents.length = 0;
+    this.chefEvents.length = 0;
+    this.justCollapsed = false;
+    this.justRecovered = false;
+    this.offlineSummary = {
+      seconds: elapsed,
+      strength: this.state.strength - before.strength,
+      money: this.state.money - before.money,
+      levels: this.state.level - before.level,
+      reps: this.state.totalReps - before.reps,
+    };
   }
 
   // ---- Queries ----
@@ -701,6 +735,7 @@ export class Game {
 
   // ---- Persistence ----
   save() {
+    this.state.lastSeen = Date.now(); // stamp so offline progress is measured from now
     localStorage.setItem(SAVE_KEY, JSON.stringify(this.state));
   }
   load(): State {
