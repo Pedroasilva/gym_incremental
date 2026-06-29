@@ -8,6 +8,7 @@ import { JOBS } from "./jobs";
 import { Competition, TOURNAMENTS, endlessField, type RoundResult, type Tournament } from "./competition";
 import { ACHIEVEMENTS } from "./achievements";
 import { PRESTIGE_UPGRADES } from "./prestige";
+import { playSound, isMuted, toggleMute } from "./sound";
 
 const game = new Game();
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -167,6 +168,7 @@ app.innerHTML = `
 
   <footer class="footer">
     <button id="reset" class="reset">Reset progress</button>
+    <button id="mute" class="reset">🔊 Sound</button>
     <span class="ver">v0.5 — From Scrawny to Swole</span>
   </footer>
   </div>
@@ -261,8 +263,10 @@ barEl.addEventListener("click", (e) => {
     if (game.state.setsCompleted > setsBefore) {
       floatText("SET ✅");
       toast(`✅ Set done! Rest ${BALANCE.restSeconds}s before the next series.`);
+      playSound("set");
     } else {
       floatText(`+${Math.max(1, Math.round(game.selectedWeight() * game.globalMultiplier()))} 💪`);
+      playSound("click");
     }
   }
 });
@@ -297,10 +301,10 @@ function holdToRepeat(el: HTMLElement, step: () => void) {
 }
 holdToRepeat($("weightDown"), () => game.changeWeight(-1));
 holdToRepeat($("weightUp"), () => game.changeWeight(1));
-$("autobuy").addEventListener("click", () => game.hireAuto());
+$("autobuy").addEventListener("click", () => game.hireAuto() && playSound("buy"));
 $("autotoggle").addEventListener("click", () => game.toggleAuto());
-$("agentbuy").addEventListener("click", () => game.hireAgent() && renderWork());
-$("chefbuy").addEventListener("click", () => game.hireChef() && renderFood());
+$("agentbuy").addEventListener("click", () => game.hireAgent() && (renderWork(), playSound("buy")));
+$("chefbuy").addEventListener("click", () => game.hireChef() && (renderFood(), playSound("buy")));
 $("cheffood").addEventListener("change", (e) => game.markFood((e.target as HTMLSelectElement).value));
 $("reset").addEventListener("click", () => {
   if (confirm("Reset all progress?")) {
@@ -315,6 +319,12 @@ $("reset").addEventListener("click", () => {
     renderHospital();
     renderArnold();
   }
+});
+const muteBtn = $<HTMLButtonElement>("mute");
+muteBtn.textContent = isMuted() ? "🔇 Muted" : "🔊 Sound";
+muteBtn.addEventListener("click", () => {
+  const m = toggleMute();
+  muteBtn.textContent = m ? "🔇 Muted" : "🔊 Sound";
 });
 
 // ================= Work =================
@@ -384,7 +394,7 @@ function renderFood() {
   }).join("");
   $("foodlist")
     .querySelectorAll<HTMLButtonElement>("[data-food]")
-    .forEach((b) => (b.onclick = () => game.eat(b.dataset.food!) && renderFood()));
+    .forEach((b) => (b.onclick = () => game.eat(b.dataset.food!) && (renderFood(), playSound("buy"))));
 }
 
 // ================= Market =================
@@ -427,7 +437,7 @@ function renderMarket() {
     .join("");
   $("marketlist")
     .querySelectorAll<HTMLButtonElement>("[data-buy]")
-    .forEach((b) => (b.onclick = () => game.buy(b.dataset.buy!) && renderMarket()));
+    .forEach((b) => (b.onclick = () => game.buy(b.dataset.buy!) && (renderMarket(), playSound("buy"))));
 }
 
 // ================= Hospital =================
@@ -445,7 +455,7 @@ function renderHospital() {
   }).join("");
   $("hospitallist")
     .querySelectorAll<HTMLButtonElement>("[data-treat]")
-    .forEach((b) => (b.onclick = () => game.hospitalize(b.dataset.treat!) && renderHospital()));
+    .forEach((b) => (b.onclick = () => game.hospitalize(b.dataset.treat!) && (renderHospital(), playSound("heal"))));
 }
 
 // ================= Competitions =================
@@ -498,13 +508,18 @@ function autoStep() {
     if (endlessActive != null) {
       lastPrize = game.clearEndless(endlessActive);
       lastPrizeFirst = true;
+      playSound("epic");
     } else {
       const res = game.claimPrize(comp.tournament.id, comp.tournament.prize);
       lastPrize = res.amount;
       lastPrizeFirst = res.first;
-      if (comp.tournament.isArnold) game.state.arnoldWon = true;
+      const wasArnold = comp.tournament.isArnold;
+      if (wasArnold) game.state.arnoldWon = true;
+      playSound(wasArnold ? "epic" : "win");
     }
     game.save();
+  } else if (comp.finished && !comp.playerWon()) {
+    playSound("lose");
   }
   renderArnold();
   if (comp && !comp.finished) compTimer = setTimeout(autoStep, ROUND_DELAY);
@@ -637,7 +652,7 @@ function renderUpgrades(force = false) {
   }).join("");
   $("upgradelist")
     .querySelectorAll<HTMLButtonElement>("[data-upg]")
-    .forEach((b) => (b.onclick = () => game.buyUpgrade(b.dataset.upg!) && renderPrestige()));
+    .forEach((b) => (b.onclick = () => game.buyUpgrade(b.dataset.upg!) && (renderPrestige(), playSound("buy"))));
 }
 
 function renderPrestige() {
@@ -670,6 +685,7 @@ $("prestige-btn").addEventListener("click", () => {
     renderWork();
     renderPrestige();
     showTab("gym");
+    playSound("epic");
   }
 });
 
@@ -713,6 +729,7 @@ function render(now: number) {
     // don't toast on the first render (shownLevel starts at -1) or on a reset drop
     if (shownLevel >= 0 && game.state.level > shownLevel) {
       toast(`⭐ Level up! You're now Level ${game.state.level}.`);
+      playSound("levelup");
     }
     shownLevel = game.state.level;
     buildList(); // newly reached level unlocks exercises immediately
@@ -895,14 +912,17 @@ function render(now: number) {
     if (!$("view-arnold").classList.contains("hidden") && !comp) renderArnold();
   }
 
-  for (const a of game.checkAchievements()) {
+  const fresh = game.checkAchievements();
+  for (const a of fresh) {
     toast(`🏅 ${a.emoji} ${a.name} unlocked!`);
     if (!$("view-achv").classList.contains("hidden")) renderAchievements();
   }
+  if (fresh.length) playSound("achieve");
 
   if (game.jobEvents.length) {
     for (const j of game.jobEvents) toast(`${j.emoji} ${j.name} done · +$${j.pay.toLocaleString("en-US")}`);
     game.jobEvents.length = 0;
+    playSound("coin");
   }
 
   if (game.chefEvents.length) {
@@ -913,10 +933,12 @@ function render(now: number) {
   if (game.justCollapsed) {
     game.justCollapsed = false;
     toast(`🏥 Collapsed! Emergency hospital — recovering ${BALANCE.collapseSeconds}s, −${Math.round(BALANCE.collapseLoss * 100)}% gains.`);
+    playSound("thud");
   }
   if (game.justRecovered) {
     game.justRecovered = false;
     toast(`💪 Recovered! Back to full health — all negative statuses cleared.`);
+    playSound("heal");
   }
 
   requestAnimationFrame(render);
