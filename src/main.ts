@@ -1,6 +1,6 @@
 import "./style.css";
 import { Game } from "./game";
-import { BALANCE, EXERCISES, JUDGED_MUSCLES } from "./balance";
+import { BALANCE, EXERCISES, JUDGED_MUSCLES, MUSCLES } from "./balance";
 import { FOODS } from "./nutrition";
 import { MARKET, CATEGORY_LABEL, type Category } from "./market";
 import { TREATMENTS } from "./hospital";
@@ -230,6 +230,17 @@ function avatar(strength: number): { emoji: string; label: string } {
 }
 
 // ================= Gym =================
+const MUSCLE_NAME: Record<string, string> = Object.fromEntries(MUSCLES.map((m) => [m.id, m.name]));
+// What each exercise develops, for the hover tooltip.
+function exerciseTip(ex: (typeof EXERCISES)[number]): string {
+  const develops =
+    ex.muscle === "fullbody"
+      ? "Full body — develops every muscle group (mass + symmetry)"
+      : `Develops ${MUSCLE_NAME[ex.muscle]} (mass)`;
+  const lock = game.unlocked(ex) ? "" : ` · unlocks at Lv ${ex.unlockLevel}`;
+  return `${develops} · +Strength XP${lock}`;
+}
+
 function buildList() {
   const nav = $("exlist");
   nav.innerHTML = "";
@@ -239,6 +250,8 @@ function buildList() {
     btn.className = "exbtn" + (ex.id === game.state.currentExercise ? " active" : "");
     btn.disabled = !ok;
     btn.textContent = ok ? ex.name : `🔒 Lv ${ex.unlockLevel}`;
+    btn.dataset.tip = exerciseTip(ex);
+    btn.title = exerciseTip(ex); // native fallback (also works on disabled buttons)
     btn.onclick = () => {
       game.selectExercise(ex.id);
       buildList();
