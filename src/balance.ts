@@ -69,6 +69,8 @@ export interface Exercise {
   minWeight: number; // lightest selectable weight (kg)
   step: number; // − / + increment (kg)
   liftFactor: number; // scales the strength-derived max-lift cap for this lift
+  requiresAchievement?: string; // also gated behind this achievement id (beyond level)
+  gainMult?: number; // multiplies XP + physique per rep (1 = normal)
 }
 
 // Weight is continuous: − / + adjust by `step`, capped at the strength-derived
@@ -82,6 +84,9 @@ export const EXERCISES: Exercise[] = [
   { id: "curl", name: "Biceps Curl", muscle: "arms", unlockLevel: 8, minWeight: 10, step: 5, liftFactor: 0.55 },
   { id: "row", name: "Row", muscle: "back", unlockLevel: 10, minWeight: 20, step: 5, liftFactor: 1.0 },
   { id: "deadlift", name: "Deadlift", muscle: "fullbody", unlockLevel: 15, minWeight: 40, step: 10, liftFactor: 2.2 },
+  // Ultimate lift — unlocked only by the "Olympian Legend" achievement (Endless stage 10).
+  // Full-body, huge cap, and a big gain multiplier so it out-earns every other exercise.
+  { id: "benchworld", name: "Bench the World", muscle: "fullbody", unlockLevel: 0, minWeight: 100, step: 25, liftFactor: 4, requiresAchievement: "endless10", gainMult: 2.5 },
 ];
 
 export const MUSCLES: { id: Muscle; name: string }[] = [

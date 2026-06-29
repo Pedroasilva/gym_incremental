@@ -251,14 +251,21 @@ function hideTip() {
 }
 
 const MUSCLE_NAME: Record<string, string> = Object.fromEntries(MUSCLES.map((m) => [m.id, m.name]));
+const ACH_NAME: Record<string, string> = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a.name]));
+// Why an exercise is still locked (achievement requirement takes priority over level).
+function lockReason(ex: (typeof EXERCISES)[number]): string {
+  if (ex.requiresAchievement) return `🏅 ${ACH_NAME[ex.requiresAchievement] ?? "achievement"}`;
+  return `Lv ${ex.unlockLevel}`;
+}
 // What each exercise develops, for the hover tooltip.
 function exerciseTip(ex: (typeof EXERCISES)[number]): string {
   const develops =
     ex.muscle === "fullbody"
       ? "Full body — develops every muscle group (mass + symmetry)"
       : `Develops ${MUSCLE_NAME[ex.muscle]} (mass)`;
-  const lock = game.unlocked(ex) ? "" : ` · unlocks at Lv ${ex.unlockLevel}`;
-  return `${develops} · +Strength XP${lock}`;
+  const bonus = ex.gainMult && ex.gainMult > 1 ? ` · ${ex.gainMult}× gains` : "";
+  const lock = game.unlocked(ex) ? "" : ` · unlock: ${lockReason(ex)}`;
+  return `${develops} · +Strength XP${bonus}${lock}`;
 }
 
 function buildList() {
@@ -270,7 +277,7 @@ function buildList() {
     const ok = game.unlocked(ex);
     // locked exercises use a class (not `disabled`) so they still fire hover for the tooltip
     btn.className = "exbtn" + (ex.id === game.state.currentExercise ? " active" : "") + (ok ? "" : " locked");
-    btn.textContent = ok ? ex.name : `🔒 Lv ${ex.unlockLevel}`;
+    btn.textContent = ok ? ex.name : `🔒 ${lockReason(ex)}`;
     const tip = exerciseTip(ex);
     btn.addEventListener("pointerenter", () => showTip(btn, tip));
     btn.addEventListener("pointerleave", hideTip);
@@ -978,7 +985,10 @@ function render(now: number) {
     toast(`🏅 ${a.emoji} ${a.name} unlocked!`);
     if (!$("view-achv").classList.contains("hidden")) renderAchievements();
   }
-  if (fresh.length) playSound("achieve");
+  if (fresh.length) {
+    playSound("achieve");
+    buildList(); // an achievement may unlock an exercise (e.g. Bench the World)
+  }
 
   if (game.jobEvents.length) {
     for (const j of game.jobEvents) toast(`${j.emoji} ${j.name} done · +$${j.pay.toLocaleString("en-US")}`);

@@ -188,7 +188,9 @@ export class Game {
     return this.state.fatigue[this.exercise().muscle];
   }
   unlocked(ex: Exercise): boolean {
-    return this.state.level >= ex.unlockLevel;
+    if (this.state.level < ex.unlockLevel) return false;
+    if (ex.requiresAchievement && !this.state.achievements[ex.requiresAchievement]) return false;
+    return true;
   }
   owns(id: string): boolean {
     return !!this.state.owned[id];
@@ -434,14 +436,15 @@ export class Game {
 
     const weight = this.selectedWeight(ex);
     const mods = this.itemMods();
+    const exMult = ex.gainMult ?? 1; // some lifts (e.g. Bench the World) just give more
 
-    const xp = (weight * BALANCE.xpPerRepFactor || 1) * this.globalMultiplier() * mods.xpMult * this.buffMult("xpMult");
+    const xp = (weight * BALANCE.xpPerRepFactor || 1) * exMult * this.globalMultiplier() * mods.xpMult * this.buffMult("xpMult");
     this.state.strength += xp;
     this.state.xp += xp;
     // reps no longer earn money — money comes only from competition prizes
 
     const muscleMult = mods.muscleMult * this.buffMult("muscleMult") * this.prestigeMult();
-    const gain = (weight * 0.1 + 0.2) * muscleMult;
+    const gain = (weight * 0.1 + 0.2) * exMult * muscleMult;
     if (ex.muscle === "fullbody") {
       // Deadlift is a full-body lift: spread development across the 5 judged groups
       // (it doesn't write to the unjudged "fullbody" slot). Total ≈ 1.8× a normal rep.
