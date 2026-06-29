@@ -5,7 +5,7 @@ import { FOODS } from "./nutrition";
 import { MARKET, CATEGORY_LABEL, type Category } from "./market";
 import { TREATMENTS } from "./hospital";
 import { JOBS } from "./jobs";
-import { Competition, TOURNAMENTS, endlessField, type RoundResult, type Tournament } from "./competition";
+import { Competition, TOURNAMENTS, endlessField, RONNIE, type RoundResult, type Tournament } from "./competition";
 import { ACHIEVEMENTS } from "./achievements";
 import { PRESTIGE_UPGRADES } from "./prestige";
 import { playSound, isMuted, toggleMute } from "./sound";
@@ -58,7 +58,7 @@ app.innerHTML = `
         <div class="weight">
           <button id="weightMin" class="wextreme">MIN</button>
           <button id="weightDown">−</button>
-          <span>Weight: <b id="weightval">0</b> / <span id="weightmax">0</span> kg</span>
+          <span>Weight: <b id="weightval">0</b><span id="weightmaxwrap"> / <span id="weightmax">0</span></span> kg</span>
           <button id="weightUp">+</button>
           <button id="weightMax" class="wextreme">MAX</button>
         </div>
@@ -221,6 +221,7 @@ TABS.forEach((t) => $("tab-" + t).addEventListener("click", () => showTab(t)));
 
 // ================= Avatar =================
 function avatar(strength: number): { emoji: string; label: string } {
+  if (game.state.ronnieWon) return { emoji: "🐐", label: "Best in the Universe" };
   if (game.state.arnoldWon) return { emoji: "🏆", label: "Arnold Champion" };
   if (strength >= 5000) return { emoji: "🦍", label: "Beast" };
   if (strength >= 1500) return { emoji: "🏋️", label: "Strong" };
@@ -547,11 +548,13 @@ let prizeAwarded = false;
 let lastPrize = 0;
 let lastPrizeFirst = false;
 let endlessActive: number | null = null; // stage being attempted in the Endless Olympia (null = a normal show)
+let ronnieActive = false; // true while the final Ronnie Coleman showdown is running
 
 function enter(t: Tournament) {
   if (!game.payEntry(t)) return; // can't afford the entry fee
   if (compTimer) clearTimeout(compTimer);
   endlessActive = null;
+  ronnieActive = false;
   comp = new Competition(t, game.state.physique, game.conditioning(), Date.now() & 0xffffff);
   lastResult = null;
   prizeAwarded = false;
@@ -564,6 +567,7 @@ function enterEndless() {
   if (!game.payEndlessEntry(stage)) return;
   if (compTimer) clearTimeout(compTimer);
   endlessActive = stage;
+  ronnieActive = false;
   const t: Tournament = {
     id: "endless",
     name: `Endless Olympia · Stage ${stage}`,
@@ -580,12 +584,37 @@ function enterEndless() {
   renderArnold();
   compTimer = setTimeout(autoStep, ROUND_DELAY);
 }
+function enterRonnie() {
+  if (!game.ronnieUnlocked()) return;
+  if (compTimer) clearTimeout(compTimer);
+  endlessActive = null;
+  ronnieActive = true;
+  const t: Tournament = {
+    id: "ronnie",
+    name: "Beat Ronnie Coleman",
+    emoji: "🐐",
+    desc: "1-on-1 vs the GOAT",
+    prize: 500000,
+    entryFee: 0,
+    rivalIdx: [],
+  };
+  comp = new Competition(t, game.state.physique, game.conditioning(), Date.now() & 0xffffff, [RONNIE]);
+  lastResult = null;
+  prizeAwarded = false;
+  renderArnold();
+  compTimer = setTimeout(autoStep, ROUND_DELAY);
+}
 function autoStep() {
   if (!comp || comp.finished) return;
   lastResult = comp.nextRound(Date.now() & 0xffffff);
   if (comp.finished && comp.playerWon() && !prizeAwarded) {
     prizeAwarded = true;
-    if (endlessActive != null) {
+    if (ronnieActive) {
+      lastPrize = game.beatRonnie();
+      lastPrizeFirst = true;
+      playSound("epic");
+      celebrate(); // full-screen "best bodybuilder in the universe" celebration
+    } else if (endlessActive != null) {
       lastPrize = game.clearEndless(endlessActive);
       lastPrizeFirst = true;
       playSound("epic");
@@ -660,11 +689,31 @@ function renderArnold() {
         <span class="tfee">Entry $${game.endlessEntry(stage).toLocaleString("en-US")}${fee ? "" : " — can't afford"}</span>
       </button>`;
     }
-    body.innerHTML = `<div class="tlist">${cards}${endlessCard}</div>`;
+    // Final boss — Beat Ronnie Coleman. Appears once you've won the Arnold; locked
+    // (with its remaining requirements listed) until every prior challenge is done.
+    let ronnieCard = "";
+    if (game.state.arnoldWon) {
+      const ready = game.ronnieUnlocked();
+      const missing = game.ronnieMissing();
+      const desc = game.state.ronnieWon
+        ? "✅ Beaten — best bodybuilder in the universe"
+        : ready
+          ? "1-on-1 vs the GOAT — brutally hard"
+          : `Locked — needs: ${missing.join(", ")}`;
+      ronnieCard = `<button class="tcard ronnie${ready ? "" : " bad"}" data-ronnie="1" ${ready ? "" : "disabled"}>
+        <span class="temoji">🐐</span>
+        <span class="tname">Beat Ronnie Coleman</span>
+        <span class="tdesc">${desc}</span>
+        <span class="tprize">${game.state.ronnieWon ? "Champion of the Universe 🏆" : "Prize $500,000 + the title"}</span>
+        <span class="tfee">Free entry — the final challenge</span>
+      </button>`;
+    }
+    body.innerHTML = `<div class="tlist">${cards}${endlessCard}${ronnieCard}</div>`;
     body.querySelectorAll<HTMLButtonElement>("[data-enter]").forEach((b) => {
       b.onclick = () => enter(TOURNAMENTS.find((t) => t.id === b.dataset.enter)!);
     });
     body.querySelector<HTMLButtonElement>("[data-endless]")?.addEventListener("click", enterEndless);
+    body.querySelector<HTMLButtonElement>("[data-ronnie]")?.addEventListener("click", enterRonnie);
   } else {
     const sorted = [...comp.competitors].sort((a, b) => {
       if (a.eliminated !== b.eliminated) return a.eliminated ? 1 : -1;
@@ -691,8 +740,9 @@ function renderArnold() {
   const msg = $("arnold-msg");
   if (comp?.finished) {
     if (comp.playerWon()) {
-      msg.textContent =
-        endlessActive != null
+      msg.textContent = ronnieActive
+        ? `🐐 You beat Ronnie Coleman! Best bodybuilder in the universe — +$${lastPrize.toLocaleString("en-US")}`
+        : endlessActive != null
           ? `🔱 Cleared Endless Olympia Stage ${game.state.olympiaStage}! Prize: $${lastPrize.toLocaleString("en-US")} (best: ${game.state.olympiaBest})`
           : `🏆 You won ${comp.tournament.name}! ${lastPrizeFirst ? "Prize" : "Rematch payout"}: $${lastPrize.toLocaleString("en-US")}`;
     } else {
@@ -791,6 +841,41 @@ function toast(text: string) {
   setTimeout(() => el.remove(), 4000);
 }
 
+// Full-screen victory celebration when Ronnie Coleman is beaten — confetti + fireworks
+// over the whole game for 5 seconds, then it tears itself down and play resumes.
+function celebrate() {
+  if (document.querySelector(".celebrate")) return; // don't stack
+  const colors = ["#f1c40f", "#e74c3c", "#2ecc71", "#3498db", "#9b59b6", "#e67e22", "#1abc9c", "#ff7ab6"];
+  const ov = document.createElement("div");
+  ov.className = "celebrate";
+  let confetti = "";
+  for (let i = 0; i < 140; i++) {
+    const c = colors[i % colors.length];
+    const left = Math.random() * 100;
+    const delay = Math.random() * 2.2;
+    const dur = 2.6 + Math.random() * 2.4;
+    const w = 6 + Math.random() * 8;
+    confetti += `<span class="confetti" style="left:${left}%;background:${c};width:${w}px;height:${w * 1.6}px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+  }
+  let fireworks = "";
+  for (let i = 0; i < 7; i++) {
+    const x = 8 + Math.random() * 84;
+    const y = 12 + Math.random() * 48;
+    fireworks += `<span class="firework" style="left:${x}%;top:${y}%;animation-delay:${(Math.random() * 3).toFixed(2)}s"></span>`;
+  }
+  ov.innerHTML =
+    confetti +
+    fireworks +
+    `<div class="celebrate-card">
+      <div class="celebrate-emoji">🎉🏆🎉</div>
+      <h1>PARABÉNS!</h1>
+      <p>VOCÊ SE TORNOU O<br><b>MELHOR BODYBUILDER<br>DO UNIVERSO</b></p>
+      <div class="celebrate-emoji">🐐 💪 🌌</div>
+    </div>`;
+  document.body.appendChild(ov);
+  setTimeout(() => ov.remove(), 5000);
+}
+
 // ================= Render loop =================
 let last = performance.now();
 let shownLevel = -1; // rebuild the exercise list whenever the level changes
@@ -856,12 +941,18 @@ function render(now: number) {
   $("exname").textContent = ex.name;
   $("weightval").textContent = String(game.selectedWeight());
   $("weightmax").textContent = String(game.maxLift());
-  const atMax = game.selectedWeight() >= game.maxLift();
-  const atMin = game.selectedWeight() <= ex.minWeight;
-  $<HTMLButtonElement>("weightUp").disabled = atMax;
-  $<HTMLButtonElement>("weightMax").disabled = atMax;
-  $<HTMLButtonElement>("weightDown").disabled = atMin;
-  $<HTMLButtonElement>("weightMin").disabled = atMin;
+  // fixed-weight lifts (Armwrestling Superman / Sparring Goku) hide the whole selector
+  const fixed = !!ex.fixedWeight;
+  ["weightMin", "weightDown", "weightUp", "weightMax"].forEach((id) => $(id).classList.toggle("hidden", fixed));
+  $("weightmaxwrap").classList.toggle("hidden", fixed);
+  if (!fixed) {
+    const atMax = game.selectedWeight() >= game.maxLift();
+    const atMin = game.selectedWeight() <= ex.minWeight;
+    $<HTMLButtonElement>("weightUp").disabled = atMax;
+    $<HTMLButtonElement>("weightMax").disabled = atMax;
+    $<HTMLButtonElement>("weightDown").disabled = atMin;
+    $<HTMLButtonElement>("weightMin").disabled = atMin;
+  }
 
   // Auto-Trainer control
   $("autolvl").textContent = String(game.state.autoLevel);

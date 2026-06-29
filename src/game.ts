@@ -47,6 +47,7 @@ export interface State {
   collapses: number; // times the player has collapsed into emergency hospital (stat)
   achievements: Record<string, boolean>; // unlocked achievements (persist across prestige)
   arnoldWon: boolean;
+  ronnieWon: boolean; // beat Ronnie Coleman, the final boss (permanent)
   olympiaStage: number; // Endless Olympia: stages cleared this season (next = +1); resets on prestige
   olympiaBest: number; // highest Endless Olympia stage ever cleared (permanent record)
   lastSeen: number; // epoch ms of the last save — used to compute offline progress
@@ -100,6 +101,7 @@ function initialState(): State {
     collapses: 0,
     achievements: {},
     arnoldWon: false,
+    ronnieWon: false,
     olympiaStage: 0,
     olympiaBest: 0,
     lastSeen: Date.now(),
@@ -159,11 +161,13 @@ export class Game {
   }
   // Heaviest weight the player can currently load, from strength + gear, per lift.
   maxLift(ex = this.exercise()): number {
+    if (ex.fixedWeight) return ex.fixedWeight; // locked-weight lift
     const cap = (BALANCE.liftCapBase + Math.sqrt(this.state.strength) * BALANCE.liftCapSlope) *
       ex.liftFactor * this.itemMods().liftMult * this.upgradeLiftMult();
     return Math.max(ex.minWeight, Math.floor(cap / ex.step) * ex.step);
   }
   selectedWeight(ex = this.exercise()): number {
+    if (ex.fixedWeight) return ex.fixedWeight; // no selector — always this weight
     const w = this.state.weight[ex.id] ?? ex.minWeight;
     return Math.max(ex.minWeight, Math.min(w, this.maxLift(ex))); // clamp to current cap
   }
@@ -317,6 +321,7 @@ export class Game {
     const keepSeasons = this.state.seasons + 1;
     const keepCollapses = this.state.collapses;
     const keepArnold = this.state.arnoldWon;
+    const keepRonnie = this.state.ronnieWon;
     const keepBest = this.state.olympiaBest;
     const keepAchievements = this.state.achievements;
     this.state = initialState();
@@ -325,6 +330,7 @@ export class Game {
     this.state.seasons = keepSeasons;
     this.state.collapses = keepCollapses;
     this.state.arnoldWon = keepArnold;
+    this.state.ronnieWon = keepRonnie;
     this.state.olympiaBest = keepBest;
     this.state.achievements = keepAchievements;
     // Seed Money upgrade: extra starting cash each New Season
@@ -655,6 +661,28 @@ export class Game {
     this.state.olympiaStage = stage;
     this.state.olympiaBest = Math.max(this.state.olympiaBest, stage);
     const amount = this.endlessPrize(stage);
+    this.state.money += amount;
+    return amount;
+  }
+
+  // ---- Final boss: Beat Ronnie Coleman ----
+  // Requires every prior challenge done: Arnold won, Olympian Legend (Endless stage 10),
+  // and Beat Goku unlocked (1M strength). The list of still-missing requirements:
+  ronnieMissing(): string[] {
+    const m: string[] = [];
+    if (!this.state.arnoldWon) m.push("win the Arnold Classic");
+    if (this.state.olympiaBest < 10) m.push("Olympian Legend (Endless stage 10)");
+    if (this.state.strength < 1_000_000) m.push("Sparring Goku (1M strength)");
+    return m;
+  }
+  ronnieUnlocked(): boolean {
+    return this.ronnieMissing().length === 0;
+  }
+  // Beating Ronnie: first win pays a huge purse and earns the title; rematches pay little.
+  beatRonnie(): number {
+    const first = !this.state.ronnieWon;
+    this.state.ronnieWon = true;
+    const amount = first ? 500_000 : 1000;
     this.state.money += amount;
     return amount;
   }

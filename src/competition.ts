@@ -62,6 +62,10 @@ export const TOURNAMENTS: Tournament[] = [
   { id: "arnold", name: "Arnold Classic", emoji: "🏆", desc: "all 7 legends", prize: 11000, entryFee: 1000, rivalIdx: [5, 6, 7, 8, 9, 10, 11], isArnold: true },
 ];
 
+// The final boss — Ronnie Coleman, the GOAT. Absurd mass, near-perfect symmetry and
+// max conditioning, so a 1-on-1 against him demands an enormous, well-rounded physique.
+export const RONNIE: RivalSpec = { name: "Ronnie Coleman 🐐", tier: 120000, imbalance: 0.05, conditioning: 100 };
+
 // Endless Olympia: a synthetic field of elite rivals all near a stage-scaled tier.
 const ENDLESS_NAMES = ["Titan", "Colossus", "Hyperion", "Maximus", "Nemesis", "Vortex", "Onyx", "Spartan"];
 export function endlessField(tier: number, size: number): RivalSpec[] {
