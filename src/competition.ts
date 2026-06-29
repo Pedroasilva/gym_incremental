@@ -9,7 +9,7 @@ export interface Competitor {
   eliminated: boolean;
 }
 
-interface RivalSpec {
+export interface RivalSpec {
   name: string;
   tier: number; // ~ average muscle development
   imbalance: number;
@@ -62,6 +62,17 @@ export const TOURNAMENTS: Tournament[] = [
   { id: "arnold", name: "Arnold Classic", emoji: "🏆", desc: "all 7 legends", prize: 11000, entryFee: 1000, rivalIdx: [5, 6, 7, 8, 9, 10, 11], isArnold: true },
 ];
 
+// Endless Olympia: a synthetic field of elite rivals all near a stage-scaled tier.
+const ENDLESS_NAMES = ["Titan", "Colossus", "Hyperion", "Maximus", "Nemesis", "Vortex", "Onyx", "Spartan"];
+export function endlessField(tier: number, size: number): RivalSpec[] {
+  return Array.from({ length: size }, (_, i) => ({
+    name: `${ENDLESS_NAMES[i % ENDLESS_NAMES.length]} ${String.fromCharCode(65 + (i % 26))}`,
+    tier: Math.round(tier * (0.9 + 0.2 * (i / Math.max(1, size - 1)))), // spread around the tier
+    imbalance: 0.08,
+    conditioning: 97 + (i % 3),
+  }));
+}
+
 function rng(seed: number) {
   let s = seed % 2147483647;
   if (s <= 0) s += 2147483646;
@@ -109,7 +120,14 @@ export class Competition {
   finished = false;
   winner?: Competitor;
 
-  constructor(t: Tournament, playerPhysique: Record<Muscle, number>, playerConditioning: number, seed: number) {
+  // customRivals overrides the tournament's fixed roster (used by the Endless Olympia).
+  constructor(
+    t: Tournament,
+    playerPhysique: Record<Muscle, number>,
+    playerConditioning: number,
+    seed: number,
+    customRivals?: RivalSpec[],
+  ) {
     this.tournament = t;
     const rand = rng(seed);
     const player: Competitor = {
@@ -120,7 +138,8 @@ export class Competition {
       score: 0,
       eliminated: false,
     };
-    this.competitors = [player, ...t.rivalIdx.map((i) => buildRival(RIVALS[i], rand))];
+    const specs = customRivals ?? t.rivalIdx.map((i) => RIVALS[i]);
+    this.competitors = [player, ...specs.map((s) => buildRival(s, rand))];
   }
 
   get currentRoundName(): string {

@@ -39,6 +39,15 @@ export const BALANCE = {
   offlineCapSeconds: 8 * 3600, // max idle time simulated on return (8h) — "welcome back"
   chefCost: 450, // one-time cost to hire the Personal Chef (auto-feeds you)
   chefHungerThreshold: 10, // chef auto-buys the marked food when hunger drops below this
+  // Endless Olympia (post-Arnold infinite endgame): each stage is a tougher field
+  // and a bigger purse. Numbers picked to start just above the Arnold and scale up.
+  endlessFieldSize: 5, // elite rivals per endless stage
+  endlessBaseTier: 4300, // rival mass tier at stage 1 (Arnold's Zeus is ~3900)
+  endlessGrowth: 1.16, // rival tier ×this per stage
+  endlessPrizeBase: 12000, // prize for clearing stage 1
+  endlessPrizeGrowth: 1.22, // prize ×this per stage
+  endlessEntryBase: 1200, // entry fee at stage 1
+  endlessEntryGrowth: 1.18, // entry fee ×this per stage
   rematchFullWins: 5, // this many wins per show pay the FULL prize before any decay
   rematchBase: 0.5, // first diminished win (after the grace window) pays this fraction
   rematchDecay: 0.7, // each further win pays this fraction of the previous one

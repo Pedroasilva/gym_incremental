@@ -5,7 +5,7 @@ import { FOODS } from "./nutrition";
 import { MARKET, CATEGORY_LABEL, type Category } from "./market";
 import { TREATMENTS } from "./hospital";
 import { JOBS } from "./jobs";
-import { Competition, TOURNAMENTS, type RoundResult, type Tournament } from "./competition";
+import { Competition, TOURNAMENTS, endlessField, type RoundResult, type Tournament } from "./competition";
 import { ACHIEVEMENTS } from "./achievements";
 import { PRESTIGE_UPGRADES } from "./prestige";
 
@@ -456,10 +456,12 @@ let lastResult: RoundResult | null = null;
 let prizeAwarded = false;
 let lastPrize = 0;
 let lastPrizeFirst = false;
+let endlessActive: number | null = null; // stage being attempted in the Endless Olympia (null = a normal show)
 
 function enter(t: Tournament) {
   if (!game.payEntry(t)) return; // can't afford the entry fee
   if (compTimer) clearTimeout(compTimer);
+  endlessActive = null;
   comp = new Competition(t, game.state.physique, game.conditioning(), Date.now() & 0xffffff);
   lastResult = null;
   prizeAwarded = false;
@@ -467,15 +469,41 @@ function enter(t: Tournament) {
   // auto-play the whole bracket: rounds run on a timer, no clicking — just watch
   compTimer = setTimeout(autoStep, ROUND_DELAY);
 }
+function enterEndless() {
+  const stage = game.endlessTarget();
+  if (!game.payEndlessEntry(stage)) return;
+  if (compTimer) clearTimeout(compTimer);
+  endlessActive = stage;
+  const t: Tournament = {
+    id: "endless",
+    name: `Endless Olympia · Stage ${stage}`,
+    emoji: "🔱",
+    desc: `${BALANCE.endlessFieldSize} legends`,
+    prize: game.endlessPrize(stage),
+    entryFee: game.endlessEntry(stage),
+    rivalIdx: [],
+  };
+  const rivals = endlessField(game.endlessTier(stage), BALANCE.endlessFieldSize);
+  comp = new Competition(t, game.state.physique, game.conditioning(), Date.now() & 0xffffff, rivals);
+  lastResult = null;
+  prizeAwarded = false;
+  renderArnold();
+  compTimer = setTimeout(autoStep, ROUND_DELAY);
+}
 function autoStep() {
   if (!comp || comp.finished) return;
   lastResult = comp.nextRound(Date.now() & 0xffffff);
   if (comp.finished && comp.playerWon() && !prizeAwarded) {
     prizeAwarded = true;
-    const res = game.claimPrize(comp.tournament.id, comp.tournament.prize);
-    lastPrize = res.amount;
-    lastPrizeFirst = res.first;
-    if (comp.tournament.isArnold) game.state.arnoldWon = true;
+    if (endlessActive != null) {
+      lastPrize = game.clearEndless(endlessActive);
+      lastPrizeFirst = true;
+    } else {
+      const res = game.claimPrize(comp.tournament.id, comp.tournament.prize);
+      lastPrize = res.amount;
+      lastPrizeFirst = res.first;
+      if (comp.tournament.isArnold) game.state.arnoldWon = true;
+    }
     game.save();
   }
   renderArnold();
@@ -509,27 +537,39 @@ function renderArnold() {
   const body = $("arnold-body");
   if (!comp) {
     // tournament picker
-    body.innerHTML =
-      `<div class="tlist">` +
-      TOURNAMENTS.map((t) => {
-        const wins = game.timesWon(t.id);
-        const next = game.nextPrize(t.id, t.prize);
-        const prizeLine = wins
-          ? `Won ×${wins} ✅ · next $${next.toLocaleString("en-US")}`
-          : `Prize $${t.prize.toLocaleString("en-US")}`;
-        const fee = game.canAffordEntry(t);
-        return `<button class="tcard${t.isArnold ? " arnold" : ""}${fee ? "" : " bad"}" data-enter="${t.id}" ${fee ? "" : "disabled"}>
-          <span class="temoji">${t.emoji}</span>
-          <span class="tname">${t.name}</span>
-          <span class="tdesc">${t.desc}</span>
-          <span class="tprize">${prizeLine}</span>
-          <span class="tfee">Entry $${t.entryFee.toLocaleString("en-US")}${fee ? "" : " — can't afford"}</span>
-        </button>`;
-      }).join("") +
-      `</div>`;
+    const cards = TOURNAMENTS.map((t) => {
+      const wins = game.timesWon(t.id);
+      const next = game.nextPrize(t.id, t.prize);
+      const prizeLine = wins
+        ? `Won ×${wins} ✅ · next $${next.toLocaleString("en-US")}`
+        : `Prize $${t.prize.toLocaleString("en-US")}`;
+      const fee = game.canAffordEntry(t);
+      return `<button class="tcard${t.isArnold ? " arnold" : ""}${fee ? "" : " bad"}" data-enter="${t.id}" ${fee ? "" : "disabled"}>
+        <span class="temoji">${t.emoji}</span>
+        <span class="tname">${t.name}</span>
+        <span class="tdesc">${t.desc}</span>
+        <span class="tprize">${prizeLine}</span>
+        <span class="tfee">Entry $${t.entryFee.toLocaleString("en-US")}${fee ? "" : " — can't afford"}</span>
+      </button>`;
+    }).join("");
+    // Endless Olympia card — infinitely scaling endgame, unlocked after the Arnold
+    let endlessCard = "";
+    if (game.endlessUnlocked()) {
+      const stage = game.endlessTarget();
+      const fee = game.canAffordEndless(stage);
+      endlessCard = `<button class="tcard endless${fee ? "" : " bad"}" data-endless="1" ${fee ? "" : "disabled"}>
+        <span class="temoji">🔱</span>
+        <span class="tname">Endless Olympia</span>
+        <span class="tdesc">Stage ${stage} · best ${game.state.olympiaBest} · ${BALANCE.endlessFieldSize} legends</span>
+        <span class="tprize">Prize $${game.endlessPrize(stage).toLocaleString("en-US")}</span>
+        <span class="tfee">Entry $${game.endlessEntry(stage).toLocaleString("en-US")}${fee ? "" : " — can't afford"}</span>
+      </button>`;
+    }
+    body.innerHTML = `<div class="tlist">${cards}${endlessCard}</div>`;
     body.querySelectorAll<HTMLButtonElement>("[data-enter]").forEach((b) => {
       b.onclick = () => enter(TOURNAMENTS.find((t) => t.id === b.dataset.enter)!);
     });
+    body.querySelector<HTMLButtonElement>("[data-endless]")?.addEventListener("click", enterEndless);
   } else {
     const sorted = [...comp.competitors].sort((a, b) => {
       if (a.eliminated !== b.eliminated) return a.eliminated ? 1 : -1;
@@ -555,9 +595,14 @@ function renderArnold() {
 
   const msg = $("arnold-msg");
   if (comp?.finished) {
-    msg.textContent = comp.playerWon()
-      ? `🏆 You won ${comp.tournament.name}! ${lastPrizeFirst ? "Prize" : "Rematch payout"}: $${lastPrize.toLocaleString("en-US")}`
-      : `Champion: ${comp.winner?.name}. Train harder and come back.`;
+    if (comp.playerWon()) {
+      msg.textContent =
+        endlessActive != null
+          ? `🔱 Cleared Endless Olympia Stage ${game.state.olympiaStage}! Prize: $${lastPrize.toLocaleString("en-US")} (best: ${game.state.olympiaBest})`
+          : `🏆 You won ${comp.tournament.name}! ${lastPrizeFirst ? "Prize" : "Rematch payout"}: $${lastPrize.toLocaleString("en-US")}`;
+    } else {
+      msg.textContent = `Champion: ${comp.winner?.name}. Train harder and come back.`;
+    }
     msg.className = "arnold-msg " + (comp.playerWon() ? "win" : "lose");
   } else if (comp && comp.playerEliminated()) {
     msg.textContent = "You were eliminated. Build more mass & symmetry, then try again.";

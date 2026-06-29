@@ -1,5 +1,9 @@
 import type { Game } from "./game";
 import { MARKET } from "./market";
+import { PRESTIGE_UPGRADES } from "./prestige";
+
+const upgradeLevels = (g: Game) => Object.values(g.state.proteinUpgrades).reduce((a, b) => a + b, 0);
+const totalWins = (g: Game) => Object.values(g.state.wonTournaments).reduce((a, b) => a + b, 0);
 
 // Achievements are pure checks over the live game state — evaluated each tick and
 // latched once true (see Game.checkAchievements).
@@ -36,4 +40,12 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "openclass", name: "Open Class", emoji: "🦍", desc: "Reach the Men's Open division", done: (g) => g.atTopDivision() },
   { id: "millionaire", name: "Big Money", emoji: "💎", desc: "Hold $10,000 at once", done: (g) => g.state.money >= 10000 },
   { id: "veteran", name: "Veteran", emoji: "🎖️", desc: "Do 10,000 total reps", done: (g) => g.state.totalReps >= 10000 },
+  { id: "marathon", name: "Marathon", emoji: "🏃", desc: "Do 50,000 total reps", done: (g) => g.state.totalReps >= 50000 },
+  { id: "titan", name: "Titan", emoji: "🗿", desc: "Reach 100,000 strength", done: (g) => g.state.strength >= 100000 },
+  { id: "prolevel", name: "Seasoned Pro", emoji: "🌟", desc: "Reach level 30", done: (g) => g.state.level >= 30 },
+  { id: "dynasty", name: "Dynasty", emoji: "👑", desc: "Win 25 competitions", done: (g) => totalWins(g) >= 25 },
+  { id: "addict", name: "Protein Addict", emoji: "🧴", desc: "Buy 10 prestige upgrade levels", done: (g) => upgradeLevels(g) >= 10 },
+  { id: "maxedupg", name: "Maxed Out", emoji: "🔝", desc: "Max out a prestige upgrade", done: (g) => PRESTIGE_UPGRADES.some((u) => g.upgradeLevel(u.id) >= u.maxLevel) },
+  { id: "endless1", name: "Endless Challenger", emoji: "🔱", desc: "Clear an Endless Olympia stage", done: (g) => g.state.olympiaBest >= 1 },
+  { id: "endless10", name: "Olympian Legend", emoji: "🌌", desc: "Reach Endless Olympia stage 10", done: (g) => g.state.olympiaBest >= 10 },
 ];

@@ -47,6 +47,8 @@ export interface State {
   collapses: number; // times the player has collapsed into emergency hospital (stat)
   achievements: Record<string, boolean>; // unlocked achievements (persist across prestige)
   arnoldWon: boolean;
+  olympiaStage: number; // Endless Olympia: stages cleared this season (next = +1); resets on prestige
+  olympiaBest: number; // highest Endless Olympia stage ever cleared (permanent record)
   lastSeen: number; // epoch ms of the last save — used to compute offline progress
 }
 
@@ -98,6 +100,8 @@ function initialState(): State {
     collapses: 0,
     achievements: {},
     arnoldWon: false,
+    olympiaStage: 0,
+    olympiaBest: 0,
     lastSeen: Date.now(),
   };
 }
@@ -156,7 +160,7 @@ export class Game {
   // Heaviest weight the player can currently load, from strength + gear, per lift.
   maxLift(ex = this.exercise()): number {
     const cap = (BALANCE.liftCapBase + Math.sqrt(this.state.strength) * BALANCE.liftCapSlope) *
-      ex.liftFactor * this.itemMods().liftMult;
+      ex.liftFactor * this.itemMods().liftMult * this.upgradeLiftMult();
     return Math.max(ex.minWeight, Math.floor(cap / ex.step) * ex.step);
   }
   selectedWeight(ex = this.exercise()): number {
@@ -266,6 +270,15 @@ export class Game {
   private upgradeClickMult(): number {
     return 1 + this.upgradeLevel("power") * 0.08;
   }
+  private upgradeConditionBonus(): number {
+    return this.upgradeLevel("showman") * 4;
+  }
+  private upgradeRestMult(): number {
+    return Math.max(0, 1 - this.upgradeLevel("recovery") * 0.08);
+  }
+  private upgradeLiftMult(): number {
+    return 1 + this.upgradeLevel("joints") * 0.06;
+  }
   // Protein you'd earn by resetting now, based on accumulated strength.
   proteinGain(): number {
     return Math.floor(Math.sqrt(this.state.strength / 500));
@@ -295,6 +308,7 @@ export class Game {
     const keepSeasons = this.state.seasons + 1;
     const keepCollapses = this.state.collapses;
     const keepArnold = this.state.arnoldWon;
+    const keepBest = this.state.olympiaBest;
     const keepAchievements = this.state.achievements;
     this.state = initialState();
     this.state.protein = keepProtein;
@@ -302,7 +316,10 @@ export class Game {
     this.state.seasons = keepSeasons;
     this.state.collapses = keepCollapses;
     this.state.arnoldWon = keepArnold;
+    this.state.olympiaBest = keepBest;
     this.state.achievements = keepAchievements;
+    // Seed Money upgrade: extra starting cash each New Season
+    this.state.money += this.upgradeLevel("seedmoney") * 250;
     this.effort = 0;
     this.autoAcc = 0;
     return true;
@@ -353,7 +370,12 @@ export class Game {
     const symmetry = mean / (mean + std); // 0..1
     const base = 40 + symmetry * 45;
     const value =
-      base + this.state.setCondition + this.state.dietCondition + this.itemMods().conditionMod - this.sideEffects();
+      base +
+      this.state.setCondition +
+      this.state.dietCondition +
+      this.itemMods().conditionMod +
+      this.upgradeConditionBonus() -
+      this.sideEffects();
     return Math.max(0, Math.min(100, Math.round(value)));
   }
 
@@ -427,7 +449,7 @@ export class Game {
     this.state.setReps[ex.id] = this.setReps(ex) + 1;
     if (this.state.setReps[ex.id] >= BALANCE.repsPerSet) {
       this.state.setReps[ex.id] = 0;
-      this.state.rest[ex.muscle] = BALANCE.restSeconds;
+      this.state.rest[ex.muscle] = BALANCE.restSeconds * this.upgradeRestMult();
       this.state.setsCompleted++;
       const setXp =
         (BALANCE.setStrengthBase + weight * BALANCE.setStrengthWeight) *
@@ -581,6 +603,41 @@ export class Game {
     this.state.wonTournaments[tournamentId] = priorWins + 1;
     this.state.money += amount;
     return { amount, first };
+  }
+
+  // ---- Endless Olympia (post-Arnold infinite endgame) ----
+  endlessUnlocked(): boolean {
+    return this.state.arnoldWon;
+  }
+  endlessTarget(): number {
+    return this.state.olympiaStage + 1; // the next stage to attempt
+  }
+  endlessTier(stage: number): number {
+    return BALANCE.endlessBaseTier * Math.pow(BALANCE.endlessGrowth, stage - 1);
+  }
+  endlessEntry(stage: number): number {
+    return Math.round(BALANCE.endlessEntryBase * Math.pow(BALANCE.endlessEntryGrowth, stage - 1));
+  }
+  endlessPrize(stage: number): number {
+    const base = BALANCE.endlessPrizeBase * Math.pow(BALANCE.endlessPrizeGrowth, stage - 1);
+    return Math.round(base * this.itemMods().moneyMult * this.upgradeMoneyMult());
+  }
+  canAffordEndless(stage: number): boolean {
+    return this.state.money >= this.endlessEntry(stage);
+  }
+  payEndlessEntry(stage: number): boolean {
+    const fee = this.endlessEntry(stage);
+    if (this.state.money < fee) return false;
+    this.state.money -= fee;
+    return true;
+  }
+  // Clearing a stage: record it, bank the prize, return the amount won.
+  clearEndless(stage: number): number {
+    this.state.olympiaStage = stage;
+    this.state.olympiaBest = Math.max(this.state.olympiaBest, stage);
+    const amount = this.endlessPrize(stage);
+    this.state.money += amount;
+    return amount;
   }
 
   // Latch any achievements whose condition is now met; return newly unlocked ones.
