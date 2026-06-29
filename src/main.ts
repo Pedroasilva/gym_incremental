@@ -230,6 +230,26 @@ function avatar(strength: number): { emoji: string; label: string } {
 }
 
 // ================= Gym =================
+// Floating tooltip appended to <body> so it's never clipped by the scroll container,
+// and clamped to the viewport so edge buttons don't get cut off.
+const tipEl = document.createElement("div");
+tipEl.className = "tip hidden";
+document.body.appendChild(tipEl);
+function showTip(target: HTMLElement, text: string) {
+  tipEl.textContent = text;
+  tipEl.classList.remove("hidden");
+  const r = target.getBoundingClientRect();
+  const t = tipEl.getBoundingClientRect();
+  const left = Math.max(8, Math.min(r.left + r.width / 2 - t.width / 2, window.innerWidth - t.width - 8));
+  let top = r.top - t.height - 8;
+  if (top < 8) top = r.bottom + 8; // flip below if there's no room above
+  tipEl.style.left = left + "px";
+  tipEl.style.top = top + "px";
+}
+function hideTip() {
+  tipEl.classList.add("hidden");
+}
+
 const MUSCLE_NAME: Record<string, string> = Object.fromEntries(MUSCLES.map((m) => [m.id, m.name]));
 // What each exercise develops, for the hover tooltip.
 function exerciseTip(ex: (typeof EXERCISES)[number]): string {
@@ -243,16 +263,20 @@ function exerciseTip(ex: (typeof EXERCISES)[number]): string {
 
 function buildList() {
   const nav = $("exlist");
+  hideTip(); // avoid a stuck tooltip when the buttons are rebuilt
   nav.innerHTML = "";
   for (const ex of EXERCISES) {
     const btn = document.createElement("button");
     const ok = game.unlocked(ex);
-    btn.className = "exbtn" + (ex.id === game.state.currentExercise ? " active" : "");
-    btn.disabled = !ok;
+    // locked exercises use a class (not `disabled`) so they still fire hover for the tooltip
+    btn.className = "exbtn" + (ex.id === game.state.currentExercise ? " active" : "") + (ok ? "" : " locked");
     btn.textContent = ok ? ex.name : `🔒 Lv ${ex.unlockLevel}`;
-    btn.dataset.tip = exerciseTip(ex);
-    btn.title = exerciseTip(ex); // native fallback (also works on disabled buttons)
+    const tip = exerciseTip(ex);
+    btn.addEventListener("pointerenter", () => showTip(btn, tip));
+    btn.addEventListener("pointerleave", hideTip);
     btn.onclick = () => {
+      if (!game.unlocked(ex)) return; // locked — ignore
+      hideTip();
       game.selectExercise(ex.id);
       buildList();
     };
